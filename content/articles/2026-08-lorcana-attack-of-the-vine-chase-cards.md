@@ -1,0 +1,43 @@
+---
+title: "Attack of the Vine!: Lorcana's Newest Set Already Has Four-Figure Chase Cards"
+description: A live look at the highest-value cards from Disney Lorcana's Attack of the Vine! set, and an honest note on how reliable those prices actually are this early.
+date: 2026-08-18
+game: Disney Lorcana
+---
+
+Disney Lorcana's Attack of the Vine! set released July 17, 2026, and the
+chase tier has already sorted itself out. Here's what the top of the market
+looks like right now:
+
+| Card | Rarity Tier | Price |
+|---|---|---|
+| Belle & Beast - Certain as the Sun | Iconic | $2,188.63 |
+| Lilo & Stitch - Fun-Loving Friends | Iconic | $1,681.59 |
+| Winnie the Pooh & Piglet - Hunny Mages | Enchanted | $917.67 |
+| Woody & Buzz Lightyear - Best Buddies | Enchanted | $406.83 |
+| Mickey Mouse & Minnie Mouse - Adventuring Duo | Enchanted | $330.71 |
+| Sulley & Boo - Scare Buddies | Enchanted | $298.45 |
+| Peter Pan & Tinker Bell - Fast Friends | Enchanted | $214.66 |
+| Rapunzel & Flynn Rider - Unlikely Pair | Enchanted | $176.41 |
+
+**A necessary caveat before you read too much into these numbers:** Iconic
+and Enchanted cards are, by design, printed at extremely low rates -- often
+a handful of confirmed copies in the first weeks after release. That means
+prices this high are frequently set by one or two actual sales (or even
+just active listings, not completed sales), and they can swing 20-30% in
+either direction on a single new listing. Treat this table as "here's the
+current pecking order," not "here's the guaranteed value" -- and if you're
+buying or selling one of these specifically, check completed listings on
+the marketplace directly before committing to a price.
+
+**What's genuinely interesting here:** Belle & Beast pulling almost 30%
+ahead of the next Iconic card is a bigger gap than most sets show at this
+stage, which usually means either the print run was unusually small or the
+card art/character pairing is resonating more than Lorcana's team
+expected. Worth revisiting in a month once enough copies have actually
+changed hands for the price to reflect real trades instead of early
+scarcity.
+
+**Where to buy:** [Check current listings on TCGplayer](#) · [Check current listings on eBay](#)
+
+*(Affiliate links pending -- see the [about page](../about.html) once TCGplayer and eBay Partner Network applications are approved.)*

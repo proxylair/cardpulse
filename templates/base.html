@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{ title }} | CardPulse</title>
+<meta name="description" content="{{ description }}">
+<link rel="stylesheet" href="{{ root }}style.css">
+</head>
+<body>
+<header class="site-header">
+  <a href="{{ root }}index.html" class="brand">CardPulse</a>
+  <nav>
+    <a href="{{ root }}index.html">Articles</a>
+    <a href="{{ root }}about.html">About</a>
+  </nav>
+</header>
+<main>
+{{ content|safe }}
+</main>
+<footer class="site-footer">
+  <p>CardPulse tracks real, current trading-card market data and publishes plain-English breakdowns. Some links on this site are affiliate links -- see our <a href="{{ root }}about.html">disclosure</a>. Price data via <a href="https://tcgcsv.com" target="_blank" rel="noopener">TCGCSV</a> (a free mirror of TCGplayer's product/price feeds).</p>
+  <p>&copy; {{ year }} CardPulse. Not affiliated with Wizards of the Coast, TCGplayer, or eBay.</p>
+</footer>
+</body>
+</html>
