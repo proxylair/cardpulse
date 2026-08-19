@@ -12,6 +12,12 @@ TCG's secondary market look like before it's had time to mature?
 
 Top of the Vendetta market right now:
 
+<div class="card-gallery">
+<figure><img src="https://tcgplayer-cdn.tcgplayer.com/product/706094_200w.jpg" alt="Akali, Rogue Assassin" loading="lazy"><figcaption>Akali, Rogue Assassin<span>$2,873.33</span></figcaption></figure>
+<figure><img src="https://tcgplayer-cdn.tcgplayer.com/product/706058_200w.jpg" alt="Zed, Master of Shadows" loading="lazy"><figcaption>Zed, Master of Shadows<span>$1,313.77</span></figcaption></figure>
+<figure><img src="https://tcgplayer-cdn.tcgplayer.com/product/706020_200w.jpg" alt="Jayce, Defender of Tomorrow" loading="lazy"><figcaption>Jayce, Defender of Tomorrow<span>$1,185.03</span></figcaption></figure>
+</div>
+
 | Card | Rarity Tier | Price |
 |---|---|---|
 | Akali, Rogue Assassin | Signature | $2,873.33 |

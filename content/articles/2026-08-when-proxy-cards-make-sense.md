@@ -35,6 +35,11 @@ a card is worth buying for real. If you're not sure whether proxies are
 welcome somewhere, ask the store or tournament organizer directly --
 policies vary and change, and this article isn't a substitute for checking.
 
+<div class="card-gallery">
+<figure><img src="https://tcgplayer-cdn.tcgplayer.com/product/702661_200w.jpg" alt="Belle & Beast - Certain as the Sun" loading="lazy"><figcaption>Belle & Beast<span>$2,188.63</span></figcaption></figure>
+<figure><img src="https://tcgplayer-cdn.tcgplayer.com/product/706094_200w.jpg" alt="Akali, Rogue Assassin" loading="lazy"><figcaption>Akali, Rogue Assassin<span>$2,873.33</span></figcaption></figure>
+</div>
+
 **Where our own price data explains the appeal.** This isn't hypothetical
 -- we've published the actual numbers. In [Attack of the Vine!'s chase
 card breakdown](2026-08-lorcana-attack-of-the-vine-chase-cards.html)

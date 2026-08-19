@@ -11,6 +11,12 @@ matter but not yet priced like chase pulls -- has settled into a real
 pattern. Below is a live snapshot of the highest-value singles under $20
 across the three most recent sets.
 
+<div class="card-gallery">
+<figure><img src="https://tcgplayer-cdn.tcgplayer.com/product/704837_200w.jpg" alt="Misty's Vitality" loading="lazy"><figcaption>Misty's Vitality<span>$18.02</span></figcaption></figure>
+<figure><img src="https://tcgplayer-cdn.tcgplayer.com/product/704787_200w.jpg" alt="Slowbro" loading="lazy"><figcaption>Slowbro<span>$14.11</span></figcaption></figure>
+<figure><img src="https://tcgplayer-cdn.tcgplayer.com/product/704805_200w.jpg" alt="Mega Darkrai ex" loading="lazy"><figcaption>Mega Darkrai ex<span>$13.18</span></figcaption></figure>
+</div>
+
 | Card | Set | Price |
 |---|---|---|
 | Misty's Vitality | ME05: Pitch Black | $18.02 |

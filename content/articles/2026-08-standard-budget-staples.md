@@ -10,10 +10,16 @@ the bulk commons -- they're the small group of uncommons, rares, and mythics
 that sit in the $2-$8 range. That's usually where a card is good enough to see
 real play, but not yet expensive enough to price players out.
 
-Below is a live snapshot (pulled today via the Scryfall pricing API) of the
-highest-priced Standard-legal cards currently under $8. A few of these are
-worth a second look if you're trading, buying singles, or deciding what to
-pick up before a price jump.
+Below is a live snapshot (pulled today via TCGCSV, a free mirror of
+TCGplayer's product/price feeds) of the highest-priced Standard-legal cards
+currently under $8. A few of these are worth a second look if you're
+trading, buying singles, or deciding what to pick up before a price jump.
+
+<div class="card-gallery">
+<figure><img src="https://tcgplayer-cdn.tcgplayer.com/product/576504_200w.jpg" alt="Untimely Malfunction" loading="lazy"><figcaption>Untimely Malfunction<span>$8.00</span></figcaption></figure>
+<figure><img src="https://tcgplayer-cdn.tcgplayer.com/product/557270_200w.jpg" alt="Overlord of the Hauntwoods" loading="lazy"><figcaption>Overlord of the Hauntwoods<span>$7.99</span></figcaption></figure>
+<figure><img src="https://tcgplayer-cdn.tcgplayer.com/product/575073_200w.jpg" alt="Kaito, Bane of Nightmares" loading="lazy"><figcaption>Kaito, Bane of Nightmares<span>$7.85</span></figcaption></figure>
+</div>
 
 | Card | Set | Rarity | Price |
 |---|---|---|---|

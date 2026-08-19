@@ -12,6 +12,13 @@ launched at the same MSRP, but they are not trading at the same price two
 weeks later -- and the gap tells you something useful about which decks
 actually have chase-worthy cards inside them.
 
+<div class="card-gallery">
+<figure><img src="https://tcgplayer-cdn.tcgplayer.com/product/704890_200w.jpg" alt="ST-32 Roronoa Zoro starter deck" loading="lazy"><figcaption>ST-32 Zoro<span>$30.47</span></figcaption></figure>
+<figure><img src="https://tcgplayer-cdn.tcgplayer.com/product/704892_200w.jpg" alt="ST-34 Charlotte Katakuri starter deck" loading="lazy"><figcaption>ST-34 Katakuri<span>$23.35</span></figcaption></figure>
+<figure><img src="https://tcgplayer-cdn.tcgplayer.com/product/706324_200w.jpg" alt="Kouzuki Oden" loading="lazy"><figcaption>Kouzuki Oden<span>$7.43</span></figcaption></figure>
+<figure><img src="https://tcgplayer-cdn.tcgplayer.com/product/706325_200w.jpg" alt="Dracule Mihawk" loading="lazy"><figcaption>Dracule Mihawk<span>$4.95</span></figcaption></figure>
+</div>
+
 Current market prices for the sealed decks:
 
 | Starter Deck | Leader | Current Price |

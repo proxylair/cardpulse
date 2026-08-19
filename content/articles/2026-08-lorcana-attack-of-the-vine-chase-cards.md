@@ -9,6 +9,12 @@ Disney Lorcana's Attack of the Vine! set released July 17, 2026, and the
 chase tier has already sorted itself out. Here's what the top of the market
 looks like right now:
 
+<div class="card-gallery">
+<figure><img src="https://tcgplayer-cdn.tcgplayer.com/product/702661_200w.jpg" alt="Belle & Beast - Certain as the Sun" loading="lazy"><figcaption>Belle & Beast<span>$2,188.63</span></figcaption></figure>
+<figure><img src="https://tcgplayer-cdn.tcgplayer.com/product/702650_200w.jpg" alt="Lilo & Stitch - Fun-Loving Friends" loading="lazy"><figcaption>Lilo & Stitch<span>$1,681.59</span></figcaption></figure>
+<figure><img src="https://tcgplayer-cdn.tcgplayer.com/product/702665_200w.jpg" alt="Winnie the Pooh & Piglet - Hunny Mages" loading="lazy"><figcaption>Winnie & Piglet<span>$917.67</span></figcaption></figure>
+</div>
+
 | Card | Rarity Tier | Price |
 |---|---|---|
 | Belle & Beast - Certain as the Sun | Iconic | $2,188.63 |

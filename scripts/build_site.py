@@ -26,6 +26,37 @@ TEMPLATE_PATH = ROOT / "templates" / "base.html"
 SITE_DIR = ROOT / "docs"  # GitHub Pages can serve straight from a /docs folder, no extra config
 SITE_URL = "https://example.com"  # TODO: replace once you have a real domain
 
+# Per-game color-coding + a little emoji personality for tags/cards.
+GAME_META = {
+    "Magic: The Gathering": {"slug": "game-mtg", "icon": "\U0001F52E"},
+    "Pokemon TCG": {"slug": "game-pokemon", "icon": "⚡"},
+    "One Piece Card Game": {"slug": "game-onepiece", "icon": "\U0001F3F4‍☠️"},
+    "Disney Lorcana": {"slug": "game-lorcana", "icon": "✨"},
+    "Riftbound TCG": {"slug": "game-riftbound", "icon": "⚔️"},
+    "Collecting & Community": {"slug": "game-community", "icon": "\U0001F4E6"},
+}
+
+
+def game_slug(game: str) -> str:
+    return GAME_META.get(game, {}).get("slug", "game-default")
+
+
+def game_icon(game: str) -> str:
+    return GAME_META.get(game, {}).get("icon", "\U0001F0CF")
+
+
+def style_buy_cta(html_body: str) -> str:
+    """Give the '**Where to buy:**' paragraph a class so CSS can turn its
+    links into big, clickable CTA buttons instead of plain text links."""
+    html_body = html_body.replace(
+        "<p><strong>Where to buy:</strong>",
+        "<p class=\"buy-cta\"><strong>Where to buy:</strong>",
+    )
+    # The buttons already have their own spacing -- drop the plain-text
+    # middle-dot separator that made sense between plain links, not buttons.
+    html_body = html_body.replace("</a> · <a", "</a><a")
+    return html_body
+
 
 def parse_front_matter(text: str):
     """Very small front-matter parser: expects a leading --- block of key: value lines."""
@@ -57,13 +88,17 @@ def build():
         raw = path.read_text()
         fm, body = parse_front_matter(raw)
         html_body = md.markdown(body, extensions=["extra", "sane_lists"])
+        html_body = style_buy_cta(html_body)
         title = fm.get("title", path.stem)
         description = fm.get("description", "")
         date = fm.get("date", datetime.now().strftime("%Y-%m-%d"))
         game = fm.get("game", "")
         slug = path.stem
 
-        tag_html = f"<span class='tag'>{game}</span> " if game else ""
+        tag_html = (
+            f"<span class='tag {game_slug(game)}'>{game_icon(game)} {game}</span> "
+            if game else ""
+        )
         page_html = template.render(
             title=title,
             description=description,
@@ -79,18 +114,36 @@ def build():
 
     # index page
     def index_item(a):
-        tag = f"<span class='tag'>{a['game']}</span> " if a["game"] else ""
+        gslug = game_slug(a["game"])
+        tag = (
+            f"<span class='tag {gslug}'>{game_icon(a['game'])} {a['game']}</span>"
+            if a["game"] else ""
+        )
         return (
-            f'<li><a href="articles/{a["slug"]}.html">{a["title"]}</a> '
-            f'<span class="meta">{tag}{a["date"]}</span>'
-            f'<p>{a["description"]}</p></li>'
+            f'<li class="article-card {gslug}">'
+            f'<span class="meta">{tag} <span>{a["date"]}</span></span>'
+            f'<a class="card-title" href="articles/{a["slug"]}.html">{a["title"]}</a>'
+            f'<p>{a["description"]}</p>'
+            f'<a class="card-cta" href="articles/{a["slug"]}.html">Read the breakdown</a>'
+            f'</li>'
         )
 
     list_items = "\n".join(index_item(a) for a in articles)
+    game_pills = "".join(
+        f"<span>{meta['icon']} {name}</span>" for name, meta in GAME_META.items()
+    )
     index_html = template.render(
         title="CardPulse -- Trading Card Market Data & Analysis",
         description="Plain-English trading card market breakdowns, backed by real price data.",
-        content=f"<h1>CardPulse</h1><p>Real trading-card market data, tracked weekly, explained simply.</p><ul class='article-list'>{list_items}</ul>",
+        content=(
+            "<div class='hero'>"
+            "<h1>\U0001F525 CardPulse</h1>"
+            "<p>Real trading-card market data, tracked regularly, explained simply -- "
+            "no fluff, just what's moving and why it matters.</p>"
+            f"<div class='game-strip'>{game_pills}</div>"
+            "</div>"
+            f"<ul class='article-grid'>{list_items}</ul>"
+        ),
         root="",
         year=datetime.now().year,
     )

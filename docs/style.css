@@ -1,51 +1,363 @@
 :root {
-  --ink: #1a1a1a;
-  --muted: #666;
-  --accent: #1f4e8c;
-  --bg: #fdfdfb;
-  --line: #e4e2dc;
+  --ink: #17171a;
+  --muted: #63615b;
+  --bg: #fdfbf6;
+  --surface: #ffffff;
+  --line: #ece8dd;
+  --accent: #2a78d6;
+  --accent-2: #eb6834;
+  --radius: 16px;
+  --shadow-sm: 0 1px 3px rgba(30, 24, 10, 0.07), 0 1px 2px rgba(30, 24, 10, 0.06);
+  --shadow-md: 0 14px 30px rgba(30, 24, 10, 0.14);
+
+  --game-mtg: #eb6834;
+  --game-pokemon: #d99000;
+  --game-onepiece: #1baf7a;
+  --game-lorcana: #2a78d6;
+  --game-riftbound: #d4548a;
+  --game-community: #158215;
+  --game-default: #4a3aa7;
 }
+
 * { box-sizing: border-box; }
+
+html { scroll-behavior: smooth; }
+
 body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
   color: var(--ink);
-  background: var(--bg);
-  max-width: 760px;
+  background:
+    radial-gradient(1200px 400px at 10% -10%, rgba(42, 120, 214, 0.08), transparent),
+    radial-gradient(1200px 400px at 90% 0%, rgba(235, 104, 52, 0.08), transparent),
+    var(--bg);
+  margin: 0;
+  padding: 0;
+  line-height: 1.65;
+}
+
+main {
+  max-width: 800px;
   margin: 0 auto;
   padding: 0 20px 60px;
-  line-height: 1.6;
 }
+
+h1, h2, .brand, .article-card a, .site-header .brand {
+  font-family: "Baloo 2", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.confetti-bar {
+  height: 6px;
+  width: 100%;
+  background: linear-gradient(
+    90deg,
+    var(--game-lorcana), var(--game-mtg), var(--game-onepiece),
+    var(--game-pokemon), var(--game-riftbound), var(--game-community),
+    var(--game-lorcana)
+  );
+  background-size: 300% 100%;
+  animation: slide-rainbow 10s linear infinite;
+}
+
+@keyframes slide-rainbow {
+  0% { background-position: 0% 0; }
+  100% { background-position: 300% 0; }
+}
+
 .site-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 24px 0;
-  border-bottom: 1px solid var(--line);
-  margin-bottom: 32px;
+  padding: 20px 20px;
+  max-width: 800px;
+  margin: 0 auto;
 }
-.brand { font-weight: 800; font-size: 1.3rem; color: var(--accent); text-decoration: none; }
-nav a { margin-left: 18px; color: var(--ink); text-decoration: none; font-size: 0.95rem; }
-nav a:hover { color: var(--accent); }
-h1 { font-size: 1.9rem; margin-bottom: 6px; }
-h2 { font-size: 1.3rem; margin-top: 2em; color: var(--accent); }
-.meta { color: var(--muted); font-size: 0.88rem; margin-top: 0; }
-.article-list { list-style: none; padding: 0; }
-.article-list li { padding: 18px 0; border-bottom: 1px solid var(--line); }
-.article-list a { font-size: 1.15rem; font-weight: 600; color: var(--ink); text-decoration: none; }
-.article-list a:hover { color: var(--accent); }
-table { width: 100%; border-collapse: collapse; margin: 1.2em 0; font-size: 0.95rem; }
-th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); }
-th { color: var(--muted); font-weight: 600; }
-.site-footer { margin-top: 60px; padding-top: 20px; border-top: 1px solid var(--line); color: var(--muted); font-size: 0.82rem; }
-.site-footer a { color: var(--accent); }
-a.affiliate::after { content: " ↗"; font-size: 0.8em; }
-.tag {
-  display: inline-block;
-  background: #eef2f8;
-  color: var(--accent);
-  border-radius: 4px;
-  padding: 1px 8px;
-  font-size: 0.78rem;
+
+.brand {
+  font-weight: 800;
+  font-size: 1.5rem;
+  text-decoration: none;
+  background: linear-gradient(90deg, var(--game-lorcana), var(--game-mtg));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  letter-spacing: 0.2px;
+}
+
+nav a {
+  margin-left: 20px;
+  color: var(--ink);
+  text-decoration: none;
   font-weight: 600;
+  font-size: 0.95rem;
+  position: relative;
+  padding-bottom: 3px;
+}
+nav a::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 0%;
+  height: 2px;
+  background: var(--accent-2);
+  transition: width 0.2s ease;
+}
+nav a:hover { color: var(--accent-2); }
+nav a:hover::after { width: 100%; }
+
+/* ---------- Hero (index page) ---------- */
+
+.hero {
+  border-radius: 22px;
+  padding: 40px 32px;
+  margin: 10px 0 36px;
+  background: linear-gradient(135deg, #2a78d6 0%, #4a3aa7 40%, #e87ba4 75%, #eb6834 100%);
+  color: #fff;
+  box-shadow: var(--shadow-md);
+  position: relative;
+  overflow: hidden;
+}
+.hero h1 {
+  margin: 0 0 8px;
+  font-size: 2.4rem;
+  font-weight: 800;
+}
+.hero p {
+  margin: 0;
+  font-size: 1.05rem;
+  opacity: 0.95;
+  max-width: 55ch;
+}
+.hero .game-strip {
+  margin-top: 22px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.hero .game-strip span {
+  background: rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  backdrop-filter: blur(2px);
+  padding: 5px 12px;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+/* ---------- Article card grid (index page) ---------- */
+
+.article-grid {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+  gap: 20px;
+}
+
+.article-card {
+  background: var(--surface);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  padding: 22px 20px 20px;
+  border-top: 6px solid var(--game-default);
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.article-card:hover {
+  transform: translateY(-5px) scale(1.01);
+  box-shadow: var(--shadow-md);
+}
+.article-card a.card-title {
+  font-size: 1.12rem;
+  font-weight: 700;
+  color: var(--ink);
+  text-decoration: none;
+  line-height: 1.35;
+}
+.article-card a.card-title:hover { color: var(--accent-2); }
+.article-card p { margin: 0; color: var(--muted); font-size: 0.92rem; }
+.article-card .card-cta {
+  margin-top: auto;
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: var(--accent);
+  text-decoration: none;
+}
+.article-card .card-cta::after { content: " →"; transition: margin-left 0.15s ease; }
+.article-card:hover .card-cta::after { margin-left: 4px; }
+
+.article-card.game-mtg { border-top-color: var(--game-mtg); }
+.article-card.game-pokemon { border-top-color: var(--game-pokemon); }
+.article-card.game-onepiece { border-top-color: var(--game-onepiece); }
+.article-card.game-lorcana { border-top-color: var(--game-lorcana); }
+.article-card.game-riftbound { border-top-color: var(--game-riftbound); }
+.article-card.game-community { border-top-color: var(--game-community); }
+
+/* ---------- Article page ---------- */
+
+article h1 { font-size: 1.95rem; margin-bottom: 6px; font-weight: 800; }
+h2 { font-size: 1.35rem; margin-top: 2em; color: var(--accent-2); font-weight: 700; }
+.meta { color: var(--muted); font-size: 0.88rem; margin-top: 0; }
+
+/* ---------- Tag pills ---------- */
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #fff;
+  background: var(--game-default);
+  border-radius: 999px;
+  padding: 3px 12px 3px 10px;
+  font-size: 0.78rem;
+  font-weight: 700;
   margin-right: 6px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+}
+.tag.game-mtg { background: var(--game-mtg); }
+.tag.game-pokemon { background: var(--game-pokemon); }
+.tag.game-onepiece { background: var(--game-onepiece); }
+.tag.game-lorcana { background: var(--game-lorcana); }
+.tag.game-riftbound { background: var(--game-riftbound); }
+.tag.game-community { background: var(--game-community); }
+
+/* ---------- Card image gallery ---------- */
+
+.card-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 16px;
+  margin: 24px 0;
+  padding: 18px;
+  background: var(--surface);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+}
+.card-gallery figure {
+  margin: 0;
+  text-align: center;
+}
+.card-gallery img {
+  width: 100%;
+  height: auto;
+  border-radius: 10px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  display: block;
+}
+.card-gallery figure:hover img {
+  transform: translateY(-6px) scale(1.04) rotate(-1deg);
+  box-shadow: 0 14px 26px rgba(0, 0, 0, 0.28);
+}
+.card-gallery figcaption {
+  margin-top: 8px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+.card-gallery figcaption span {
+  display: block;
+  font-weight: 600;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+/* ---------- Tables ---------- */
+
+table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  margin: 1.4em 0;
+  font-size: 0.95rem;
+  background: var(--surface);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--line); }
+th {
+  color: #fff;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  font-weight: 700;
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+tbody tr { transition: background 0.15s ease; }
+tbody tr:hover { background: #fbf6ec; }
+tbody tr:last-child td { border-bottom: none; }
+
+/* ---------- Buy CTA buttons ---------- */
+
+p.buy-cta {
+  margin: 28px 0 8px;
+  padding: 18px;
+  background: linear-gradient(135deg, rgba(42, 120, 214, 0.08), rgba(235, 104, 52, 0.08));
+  border: 1px dashed rgba(42, 120, 214, 0.3);
+  border-radius: var(--radius);
+}
+p.buy-cta strong {
+  display: block;
+  margin-bottom: 10px;
+  font-family: "Baloo 2", sans-serif;
+  font-size: 1rem;
+  color: var(--ink);
+}
+p.buy-cta a {
+  display: inline-block;
+  text-decoration: none;
+  color: #fff !important;
+  font-weight: 700;
+  font-size: 0.9rem;
+  padding: 10px 18px;
+  border-radius: 999px;
+  margin: 4px 8px 4px 0;
+  background: linear-gradient(135deg, var(--accent), #1c5cab);
+  box-shadow: 0 4px 12px rgba(42, 120, 214, 0.35);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+p.buy-cta a:hover {
+  transform: translateY(-2px) scale(1.03);
+  box-shadow: 0 8px 18px rgba(42, 120, 214, 0.45);
+}
+p.buy-cta a:nth-of-type(2) {
+  background: linear-gradient(135deg, var(--accent-2), #c74f1f);
+  box-shadow: 0 4px 12px rgba(235, 104, 52, 0.35);
+}
+p.buy-cta a:nth-of-type(2):hover {
+  box-shadow: 0 8px 18px rgba(235, 104, 52, 0.45);
+}
+p.buy-cta a::before { content: "🛒 "; }
+p.buy-cta em, em.disclosure-note {
+  display: block;
+  margin-top: 10px;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+/* ---------- Misc content polish ---------- */
+
+article strong { color: var(--ink); }
+a { color: var(--accent); }
+a:hover { color: var(--accent-2); }
+
+.site-footer {
+  margin-top: 60px;
+  padding: 24px 20px;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 0.82rem;
+  max-width: 800px;
+  margin-left: auto;
+  margin-right: auto;
+}
+.site-footer a { color: var(--accent); }
+
+@media (max-width: 480px) {
+  .hero { padding: 28px 20px; }
+  .hero h1 { font-size: 1.8rem; }
 }
