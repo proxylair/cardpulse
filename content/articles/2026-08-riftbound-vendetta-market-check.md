@@ -32,9 +32,10 @@ Top of the Vendetta market right now:
 history that Pokemon, Magic, or even Lorcana now have, and "Signature"
 cards at this rarity move in extremely thin volume -- the gap between
 Akali at $2,873 and Zed at $1,313 (more than double) is a bigger jump than
-you'd see in a more established game, which usually means the market is
+you'd see in a more established game, which may indicate the market is
 still being set by a small number of collectors and speculators rather
-than broad demand. Champions with existing League of Legends star power
+than broad demand -- though with this little sales history, that's a
+read on the data, not a confirmed cause. Champions with existing League of Legends star power
 (Akali, Zed) topping the list isn't surprising, but it's worth watching
 whether that gap compresses as more packs get opened, or whether IP
 recognition ends up being a durable price driver for this game the way it
@@ -42,10 +43,11 @@ has been for other licensed TCGs.
 
 **The more useful signal for anyone actually playing:** an "Overnumbered"
 (lower rarity) version of Akali is also trading at $443 -- meaning even the
-non-chase print of the set's most in-demand card carries real value. That's
-a better indicator of actual competitive demand than the Signature price,
-since it reflects players wanting the card to play with, not just
-collectors chasing the rare print.
+non-chase print of the set's most in-demand card carries real value. That
+may be a better indicator of actual competitive demand than the Signature
+price -- it could reflect players wanting the card to play with rather than
+collectors chasing the rare print, though we're inferring that from the
+price gap, not from direct data on who's buying.
 
 *This is a new game with a thin trading history -- prices here should be
 read as a snapshot of current listings, not a stable valuation. Worth

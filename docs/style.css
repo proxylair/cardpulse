@@ -144,6 +144,82 @@ nav a:hover::after { width: 100%; }
   font-weight: 700;
 }
 
+/* ---------- Section headings (movers, related, latest analysis) ---------- */
+
+.section-heading {
+  font-size: 1.2rem;
+  font-weight: 800;
+  color: var(--ink);
+  margin: 0 0 14px;
+  font-family: "Baloo 2", sans-serif;
+}
+.section-heading .meta {
+  font-weight: 600;
+  font-size: 0.78rem;
+  margin-left: 4px;
+}
+
+/* ---------- Stats bar + Biggest Movers (homepage market snapshot) ---------- */
+
+.stats-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 0 0 30px;
+}
+.stat-tile {
+  flex: 1 1 140px;
+  background: var(--surface);
+  border-radius: 12px;
+  box-shadow: var(--shadow-sm);
+  padding: 14px 16px;
+  text-align: center;
+}
+.stat-tile strong {
+  display: block;
+  font-family: "Baloo 2", sans-serif;
+  font-size: 1.3rem;
+  color: var(--accent);
+}
+.stat-tile span {
+  font-size: 0.78rem;
+  color: var(--muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.mover-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 14px;
+  margin: 0 0 36px;
+}
+.mover-card {
+  background: var(--surface);
+  border-radius: 12px;
+  box-shadow: var(--shadow-sm);
+  padding: 14px 16px;
+  border-left: 5px solid var(--muted);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.mover-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); }
+.mover-card.up { border-left-color: #0ca30c; }
+.mover-card.down { border-left-color: #d03b3b; }
+.mover-card strong { font-size: 0.95rem; line-height: 1.3; }
+.mover-price { font-size: 0.82rem; color: var(--muted); }
+.mover-pct { font-weight: 800; font-size: 1.05rem; }
+.mover-pct.up { color: #0ca30c; }
+.mover-pct.down { color: #d03b3b; }
+
+/* ---------- Related articles (bottom of article pages) ---------- */
+
+.related { margin-top: 48px; }
+.related .article-grid { margin-top: 4px; }
+
 /* ---------- Article card grid (index page) ---------- */
 
 .article-grid {
@@ -356,6 +432,7 @@ a:hover { color: var(--accent-2); }
   margin-right: auto;
 }
 .site-footer a { color: var(--accent); }
+.footer-crosslink { font-weight: 600; }
 
 @media (max-width: 480px) {
   .hero { padding: 28px 20px; }

@@ -38,9 +38,9 @@ the marketplace directly before committing to a price.
 
 **What's genuinely interesting here:** Belle & Beast pulling almost 30%
 ahead of the next Iconic card is a bigger gap than most sets show at this
-stage, which usually means either the print run was unusually small or the
+stage, which may indicate either the print run was unusually small or the
 card art/character pairing is resonating more than Lorcana's team
-expected. Worth revisiting in a month once enough copies have actually
+expected -- we can't tell which from price data alone. Worth revisiting in a month once enough copies have actually
 changed hands for the price to reflect real trades instead of early
 scarcity.
 

@@ -12,6 +12,7 @@ folder as-is to GitHub Pages, Cloudflare Pages, or Netlify (all free).
 
 Usage: python3 scripts/build_site.py
 """
+import json
 import re
 import shutil
 from datetime import datetime
@@ -23,8 +24,15 @@ from jinja2 import Template
 ROOT = Path(__file__).resolve().parent.parent
 CONTENT_DIR = ROOT / "content" / "articles"
 TEMPLATE_PATH = ROOT / "templates" / "base.html"
+SNAP_DIR = ROOT / "data" / "snapshots"
 SITE_DIR = ROOT / "docs"  # GitHub Pages can serve straight from a /docs folder, no extra config
 SITE_URL = "https://example.com"  # TODO: replace once you have a real domain
+
+# Cards below this price move around on pennies alone -- a $0.04 -> $0.08
+# card is "+100%" but meaningless. Keep the homepage movers list honest.
+MOVERS_MIN_PRICE = 1.00
+MOVERS_MIN_PCT = 8.0
+MOVERS_LIMIT = 3
 
 # Per-game color-coding + a little emoji personality for tags/cards.
 GAME_META = {
@@ -58,6 +66,126 @@ def style_buy_cta(html_body: str) -> str:
     return html_body
 
 
+def compute_market_snapshot():
+    """Reads the two most recent price snapshots and returns real movers +
+    coverage stats for the homepage. Returns None if fewer than 2 snapshots
+    exist yet -- the homepage just skips that section rather than faking data."""
+    files = sorted(SNAP_DIR.glob("*.json"))
+    if not files:
+        return None
+
+    latest = json.loads(files[-1].read_text(encoding="utf-8"))
+    total_cards = sum(len(g.get("cards", [])) for g in latest.get("games", {}).values())
+    stats = {
+        "cards_tracked": total_cards,
+        "games_tracked": len(latest.get("games", {})),
+        "last_updated": latest.get("fetched_at", "")[:10],
+    }
+
+    movers = []
+    if len(files) >= 2:
+        old = json.loads(files[-2].read_text(encoding="utf-8"))
+        for game_key, game in latest.get("games", {}).items():
+            old_cards = {
+                (c["name"], c["set"]): c["market_price"]
+                for c in old.get("games", {}).get(game_key, {}).get("cards", [])
+                if c.get("market_price") is not None
+            }
+            label = game.get("label", game_key)
+            for c in game.get("cards", []):
+                new_price = c.get("market_price")
+                if new_price is None or new_price < MOVERS_MIN_PRICE:
+                    continue
+                old_price = old_cards.get((c["name"], c["set"]))
+                if not old_price:
+                    continue
+                pct = (new_price - old_price) / old_price * 100
+                if abs(pct) >= MOVERS_MIN_PCT:
+                    movers.append({
+                        "name": c["name"],
+                        "game_label": label,
+                        "old_price": old_price,
+                        "new_price": new_price,
+                        "pct": pct,
+                    })
+        movers.sort(key=lambda m: m["pct"], reverse=True)
+
+    gainers = [m for m in movers if m["pct"] > 0][:MOVERS_LIMIT]
+    losers = sorted([m for m in movers if m["pct"] < 0], key=lambda m: m["pct"])[:MOVERS_LIMIT]
+    stats["prior_snapshot"] = json.loads(files[-2].read_text(encoding="utf-8")).get("fetched_at", "")[:10] if len(files) >= 2 else None
+    return {"stats": stats, "gainers": gainers, "losers": losers}
+
+
+def render_mover_card(m):
+    direction = "up" if m["pct"] > 0 else "down"
+    gslug = game_slug(m["game_label"])
+    arrow = "▲" if direction == "up" else "▼"
+    return (
+        f'<div class="mover-card {direction}">'
+        f'<span class="tag {gslug}">{game_icon(m["game_label"])} {m["game_label"]}</span>'
+        f'<strong>{m["name"]}</strong>'
+        f'<span class="mover-price">${m["old_price"]:.2f} → ${m["new_price"]:.2f}</span>'
+        f'<span class="mover-pct {direction}">{arrow} {m["pct"]:+.1f}%</span>'
+        f'</div>'
+    )
+
+
+def render_market_section(snapshot):
+    if snapshot is None:
+        return ""
+    stats = snapshot["stats"]
+    stats_html = (
+        "<div class='stats-bar'>"
+        f"<div class='stat-tile'><strong>{stats['cards_tracked']:,}</strong><span>cards tracked</span></div>"
+        f"<div class='stat-tile'><strong>{stats['games_tracked']}</strong><span>games covered</span></div>"
+        f"<div class='stat-tile'><strong>{stats['last_updated']}</strong><span>last updated</span></div>"
+        "</div>"
+    )
+    if not snapshot["gainers"] and not snapshot["losers"]:
+        note = (
+            "<p class='meta'>No cards cleared the noise filter (min $1.00, "
+            f"min {MOVERS_MIN_PCT:.0f}% move) since the last snapshot -- "
+            "check back after the next price pull.</p>"
+        ) if stats.get("prior_snapshot") else (
+            "<p class='meta'>Movers need at least two snapshots to compare -- "
+            "check back after the next scheduled price pull.</p>"
+        )
+        return f"{stats_html}{note}"
+
+    cards = "".join(render_mover_card(m) for m in snapshot["gainers"] + snapshot["losers"])
+    since = f" <span class='meta'>since {stats['prior_snapshot']}</span>" if stats.get("prior_snapshot") else ""
+    return (
+        f"{stats_html}"
+        f"<h2 class='section-heading'>\U0001F525 Biggest Movers{since}</h2>"
+        f"<div class='mover-grid'>{cards}</div>"
+    )
+
+
+def render_related_articles(current_slug, current_game, all_articles):
+    others = [a for a in all_articles if a["slug"] != current_slug]
+    if not others:
+        return ""
+    same_game = [a for a in others if a["game"] == current_game]
+    rest = [a for a in others if a["game"] != current_game]
+    picks = (same_game + rest)[:3]
+    items = "".join(
+        f'<li class="article-card {game_slug(a["game"])}">'
+        f'<span class="meta"><span class="tag {game_slug(a["game"])}">{game_icon(a["game"])} {a["game"]}</span> '
+        f'<span>{a["date"]}</span></span>'
+        f'<a class="card-title" href="{a["slug"]}.html">{a["title"]}</a>'
+        f'<p>{a["description"]}</p>'
+        f'<a class="card-cta" href="{a["slug"]}.html">Read the breakdown</a>'
+        f'</li>'
+        for a in picks
+    )
+    return (
+        "<section class='related'>"
+        "<h2 class='section-heading'>More from CardPulse</h2>"
+        f"<ul class='article-grid'>{items}</ul>"
+        "</section>"
+    )
+
+
 def parse_front_matter(text: str):
     """Very small front-matter parser: expects a leading --- block of key: value lines."""
     fm = {}
@@ -84,33 +212,45 @@ def build():
     template = Template(TEMPLATE_PATH.read_text(encoding="utf-8"))
     articles = []
 
+    # First pass: parse every article's front matter + body so related-article
+    # links can be built with full knowledge of the catalog before any file
+    # is written.
     for path in sorted(CONTENT_DIR.glob("*.md")):
         raw = path.read_text(encoding="utf-8")
         fm, body = parse_front_matter(raw)
         html_body = md.markdown(body, extensions=["extra", "sane_lists"])
         html_body = style_buy_cta(html_body)
-        title = fm.get("title", path.stem)
-        description = fm.get("description", "")
-        date = fm.get("date", datetime.now().strftime("%Y-%m-%d"))
-        game = fm.get("game", "")
-        slug = path.stem
+        articles.append({
+            "title": fm.get("title", path.stem),
+            "description": fm.get("description", ""),
+            "date": fm.get("date", datetime.now().strftime("%Y-%m-%d")),
+            "game": fm.get("game", ""),
+            "slug": path.stem,
+            "html_body": html_body,
+        })
 
+    articles.sort(key=lambda a: a["date"], reverse=True)
+
+    # Second pass: render + write each article page, now with a "More from
+    # CardPulse" block linking to other articles.
+    for a in articles:
         tag_html = (
-            f"<span class='tag {game_slug(game)}'>{game_icon(game)} {game}</span> "
-            if game else ""
+            f"<span class='tag {game_slug(a['game'])}'>{game_icon(a['game'])} {a['game']}</span> "
+            if a["game"] else ""
         )
+        related_html = render_related_articles(a["slug"], a["game"], articles)
         page_html = template.render(
-            title=title,
-            description=description,
-            content=f"<article><h1>{title}</h1><p class='meta'>{tag_html}{date}</p>{html_body}</article>",
+            title=a["title"],
+            description=a["description"],
+            content=(
+                f"<article><h1>{a['title']}</h1><p class='meta'>{tag_html}{a['date']}</p>"
+                f"{a['html_body']}</article>{related_html}"
+            ),
             root="../",
             year=datetime.now().year,
         )
-        out_path = SITE_DIR / "articles" / f"{slug}.html"
+        out_path = SITE_DIR / "articles" / f"{a['slug']}.html"
         out_path.write_text(page_html, encoding="utf-8")
-        articles.append({"title": title, "description": description, "date": date, "slug": slug, "game": game})
-
-    articles.sort(key=lambda a: a["date"], reverse=True)
 
     # index page
     def index_item(a):
@@ -132,6 +272,7 @@ def build():
     game_pills = "".join(
         f"<span>{meta['icon']} {name}</span>" for name, meta in GAME_META.items()
     )
+    market_html = render_market_section(compute_market_snapshot())
     index_html = template.render(
         title="CardPulse -- Trading Card Market Data & Analysis",
         description="Plain-English trading card market breakdowns, backed by real price data.",
@@ -142,6 +283,8 @@ def build():
             "no fluff, just what's moving and why it matters.</p>"
             f"<div class='game-strip'>{game_pills}</div>"
             "</div>"
+            f"{market_html}"
+            "<h2 class='section-heading'>Latest Analysis</h2>"
             f"<ul class='article-grid'>{list_items}</ul>"
         ),
         root="",
@@ -173,8 +316,63 @@ def build():
     )
     (SITE_DIR / "about.html").write_text(about_html, encoding="utf-8")
 
+    # methodology page -- the credibility backbone: where do these numbers
+    # actually come from, and what are their limits.
+    methodology_html = template.render(
+        title="Methodology",
+        description="Where CardPulse's price data comes from, what \"market price\" means, and where the numbers get shaky.",
+        content=(
+            "<h1>Methodology</h1>"
+            "<p>Once you publish a number like $2,873.33 for a single card, the fair "
+            "next question is: where exactly did that come from? Here's the honest "
+            "answer.</p>"
+            "<h2>Where the data comes from</h2>"
+            "<p>Prices come from <a href=\"https://tcgcsv.com\" target=\"_blank\" rel=\"noopener\">TCGCSV</a>, "
+            "a free, no-API-key mirror of TCGplayer's own product and pricing feeds. "
+            "We don't run our own marketplace or set any prices ourselves -- we're "
+            "reading the same catalog TCGplayer exposes and explaining what changed.</p>"
+            "<h2>What \"market price\" means</h2>"
+            "<p>The price shown in articles is TCGplayer's <strong>market price</strong> for "
+            "that product: a rolling estimate based on recent sales activity, not a "
+            "single listing and not a guaranteed sale price. We also pull low and high "
+            "prices where relevant, which reflect the current range of active listings.</p>"
+            "<h2>How \"movers\" are calculated</h2>"
+            "<p>We keep a dated snapshot of the full catalog each time we pull data, and "
+            "compare the two most recent snapshots to find the biggest gainers and "
+            "losers. To keep that list honest, we filter out anything under $1.00 "
+            f"(a card going from $0.04 to $0.08 is technically \"+100%\" and means "
+            f"nothing) and anything moving less than {MOVERS_MIN_PCT:.0f}% -- normal "
+            "day-to-day noise, not a real move.</p>"
+            "<h2>Low-volume and thin-market cards</h2>"
+            "<p>Rare, newly-released, or low-print cards can have a \"market price\" set "
+            "by only a handful of actual sales -- sometimes even by active listings "
+            "rather than completed ones. We call this out directly in articles that "
+            "cover chase-tier cards, because a price built on 2-3 sales can move 20-30% "
+            "on a single new listing. Treat those numbers as the current pecking order, "
+            "not a guaranteed valuation.</p>"
+            "<h2>Sealed product vs. singles</h2>"
+            "<p>When an article covers sealed product (starter decks, booster boxes), "
+            "that price is for the sealed unit itself, not the sum of the cards inside "
+            "it -- we call out the difference explicitly when it's relevant to the "
+            "takeaway.</p>"
+            "<h2>What's not included</h2>"
+            "<p>Prices shown do not include shipping, marketplace fees, or sales tax. "
+            "They're a snapshot as of the article's date and will drift -- always check "
+            "current listings before buying or selling based on a number you read here.</p>"
+            "<h2>Analysis vs. fact</h2>"
+            "<p>When an article suggests <em>why</em> a price might be moving -- "
+            "competitive play, collector demand, print scarcity -- that's our read of "
+            "the data, not a confirmed fact. We try to flag that distinction with "
+            "language like \"may indicate\" or \"the data suggests\" rather than stating "
+            "a cause as settled.</p>"
+        ),
+        root="",
+        year=datetime.now().year,
+    )
+    (SITE_DIR / "methodology.html").write_text(methodology_html, encoding="utf-8")
+
     # sitemap.xml
-    urls = ["", "about.html"] + [f"articles/{a['slug']}.html" for a in articles]
+    urls = ["", "about.html", "methodology.html"] + [f"articles/{a['slug']}.html" for a in articles]
     sitemap = ['<?xml version="1.0" encoding="UTF-8"?>', '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">']
     for u in urls:
         sitemap.append(f"  <url><loc>{SITE_URL}/{u}</loc></url>")

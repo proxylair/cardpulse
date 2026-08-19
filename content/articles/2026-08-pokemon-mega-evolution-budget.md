@@ -36,9 +36,10 @@ release (prices haven't settled yet) but worth watching over the next
 month to see which of these hold versus fall back toward bulk. Misty's
 Vitality leading the list as a Trainer/Supporter-type card rather than a
 Pokemon is the more interesting signal: support cards that price above the
-Mega ex cards in their own set are usually doing so because they're
-showing up as a 3-4 of across multiple competitive decks, not because of a
-flashy alt-art print.
+Mega ex cards in their own set often do so because they're showing up as
+a 3-4 of across multiple competitive decks -- that's the more likely read
+rather than a flashy alt-art print, though price data alone can't confirm
+actual competitive usage.
 
 Mega Greninja ex and Mega Darkrai ex both landing in double digits while
 several other Mega ex cards from the same sets didn't make this list is a

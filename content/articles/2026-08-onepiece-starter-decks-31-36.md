@@ -33,14 +33,15 @@ Current market prices for the sealed decks:
 premium -- it's what's riding along with it. The Zoro deck's individual
 notable cards are already outpricing the others on their own: Kouzuki Oden
 is sitting at $7.43 and Dracule Mihawk at $4.95, which together are worth
-more than a third of the whole deck's sealed price. That's the sign of a
-deck where the support cards, not just the leader, have real demand.
+more than a third of the whole deck's sealed price. That pattern suggests a
+deck where the support cards, not just the leader, have real demand -- though
+the deck being newer and print runs still settling could also be a factor.
 
 By comparison, ST-33 (Kuzan) and ST-35 (Sabo) are trading closer to "leader
 card plus a small premium for the rest of the deck" -- their sealed price
-roughly tracks what you'd expect from just the leader alone, which usually
-means the supporting cards in those decks haven't found a home in
-competitive lists yet.
+roughly tracks what you'd expect from just the leader alone, which may mean
+the supporting cards in those decks haven't found a home in competitive
+lists yet, though it's early enough that this could still shift.
 
 **The practical takeaway:** if you're buying to open and build, ST-32 and
 ST-34 currently have the best odds of the deck being worth more than what

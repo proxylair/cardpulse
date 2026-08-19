@@ -40,9 +40,9 @@ Duskmourn: House of Horror and Wilds of Eldraine each place two cards in the
 top ten, which tracks -- both sets are still deep into their Standard rotation
 window and their strongest mythics haven't fallen off yet. Kaito, Bane of
 Nightmares in particular is worth watching: planeswalkers that hold this kind
-of price outside the "chase" tier ($15+) usually do because they're a
-consistent 2-3 of in multiple competitive lists, not because of speculative
-hype.
+of price outside the "chase" tier ($15+) often do so because they're a
+consistent 2-3 of in multiple competitive lists -- though that's a read on
+the data, not a confirmed reason, and speculative hype can't be ruled out.
 
 The two Marvel's Spider-Man cards are a good example of a crossover set
 holding value better than most people expected at release -- worth watching
