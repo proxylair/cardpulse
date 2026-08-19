@@ -62,5 +62,4 @@ card" use cases described above.
 
 If you've read this far because you're weighing a real four-figure chase
 card against a proxy for casual play, that's exactly the decision this
-article was trying to help with -- and it's also, transparently, a decision
-ProxyLair's own business depends on people making.
+article was trying to help with.
