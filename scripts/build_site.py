@@ -23,7 +23,7 @@ from jinja2 import Template
 ROOT = Path(__file__).resolve().parent.parent
 CONTENT_DIR = ROOT / "content" / "articles"
 TEMPLATE_PATH = ROOT / "templates" / "base.html"
-SITE_DIR = ROOT / "docs"
+SITE_DIR = ROOT / "docs"  # GitHub Pages can serve straight from a /docs folder, no extra config
 SITE_URL = "https://example.com"  # TODO: replace once you have a real domain
 
 
@@ -108,6 +108,12 @@ def build():
             "<p>Some links on this site are affiliate links (TCGplayer, eBay Partner Network). "
             "If you click through and make a purchase, this site may earn a small commission "
             "at no extra cost to you. We only link to products we'd genuinely point you to.</p>"
+            "<h2>Ownership Disclosure</h2>"
+            "<p>CardPulse is run by the same person behind "
+            "<a href=\"https://proxylair.com\" target=\"_blank\" rel=\"noopener\">ProxyLair</a>, "
+            "a custom TCG proxy card design and production studio. We're upfront about that "
+            "connection anywhere the two come up -- if an article mentions ProxyLair, treat it "
+            "the same way you'd treat any other disclosed relationship on this site.</p>"
         ),
         root="",
         year=datetime.now().year,
