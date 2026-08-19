@@ -44,6 +44,6 @@ an existing deck, ST-35 and ST-33 are the cheaper way to get there.
 will move as more of each deck gets opened -- worth rechecking before buying
 multiple copies.*
 
-**Where to buy:** [Check current listings on TCGplayer](#) · [Check current listings on eBay](https://www.ebay.com/sch/i.html?_nkw=one+piece+card+game+starter+deck&mkevt=1&mkcid=1&mkrid=711-53200-19255-0&campid=5339192526&toolid=10001)
+**Where to buy:** [Check current listings on TCGplayer](#) · [Check current listings on eBay](https://www.ebay.com/sch/i.html?_nkw=one+piece+card+game+starter+deck&mkcid=1&mkrid=711-53200-19255-0&toolid=20023&campid=5339192526&customid=onepiece-starter-decks&siteid=0&mkevt=1)
 
 *(TCGplayer link pending approval -- see the [about page](../about.html).)*

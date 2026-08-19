@@ -45,6 +45,6 @@ whether that holds or fades as the set ages further from its print run.
 *Prices shown are USD market snapshots as of the article date and will drift.
 Always check current pricing before buying or trading.*
 
-**Where to buy:** [Check current listings on TCGplayer](#) · [Check current listings on eBay](https://www.ebay.com/sch/i.html?_nkw=magic+the+gathering+standard+singles&mkevt=1&mkcid=1&mkrid=711-53200-19255-0&campid=5339192526&toolid=10001)
+**Where to buy:** [Check current listings on TCGplayer](#) · [Check current listings on eBay](https://www.ebay.com/sch/i.html?_nkw=magic+the+gathering+standard+singles&mkcid=1&mkrid=711-53200-19255-0&toolid=20023&campid=5339192526&customid=mtg-budget-staples&siteid=0&mkevt=1)
 
 *(TCGplayer link pending approval -- see the [about page](../about.html).)*

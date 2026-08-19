@@ -38,6 +38,6 @@ expected. Worth revisiting in a month once enough copies have actually
 changed hands for the price to reflect real trades instead of early
 scarcity.
 
-**Where to buy:** [Check current listings on TCGplayer](#) · [Check current listings on eBay](https://www.ebay.com/sch/i.html?_nkw=lorcana+attack+of+the+vine&mkevt=1&mkcid=1&mkrid=711-53200-19255-0&campid=5339192526&toolid=10001)
+**Where to buy:** [Check current listings on TCGplayer](#) · [Check current listings on eBay](https://www.ebay.com/sch/i.html?_nkw=lorcana+attack+of+the+vine&mkcid=1&mkrid=711-53200-19255-0&toolid=20023&campid=5339192526&customid=lorcana-attack-of-the-vine&siteid=0&mkevt=1)
 
 *(TCGplayer link pending approval -- see the [about page](../about.html).)*
