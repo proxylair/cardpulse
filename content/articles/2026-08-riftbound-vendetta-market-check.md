@@ -45,6 +45,6 @@ collectors chasing the rare print.
 read as a snapshot of current listings, not a stable valuation. Worth
 rechecking monthly as more of the set gets opened.*
 
-**Where to buy:** [Check current listings on TCGplayer](#) · [Check current listings on eBay](#)
+**Where to buy:** [Check current listings on TCGplayer](#) · [Check current listings on eBay](https://www.ebay.com/sch/i.html?_nkw=riftbound+vendetta+tcg&mkevt=1&mkcid=1&mkrid=711-53200-19255-0&campid=5339192526&toolid=10001)
 
-*(Affiliate links pending -- see the [about page](../about.html) once TCGplayer and eBay Partner Network applications are approved.)*
+*(TCGplayer link pending approval -- see the [about page](../about.html).)*
