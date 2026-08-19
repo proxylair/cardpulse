@@ -81,11 +81,11 @@ def build():
     # copy static assets
     shutil.copyfile(ROOT / "templates" / "style.css", SITE_DIR / "style.css")
 
-    template = Template(TEMPLATE_PATH.read_text())
+    template = Template(TEMPLATE_PATH.read_text(encoding="utf-8"))
     articles = []
 
     for path in sorted(CONTENT_DIR.glob("*.md")):
-        raw = path.read_text()
+        raw = path.read_text(encoding="utf-8")
         fm, body = parse_front_matter(raw)
         html_body = md.markdown(body, extensions=["extra", "sane_lists"])
         html_body = style_buy_cta(html_body)
@@ -107,7 +107,7 @@ def build():
             year=datetime.now().year,
         )
         out_path = SITE_DIR / "articles" / f"{slug}.html"
-        out_path.write_text(page_html)
+        out_path.write_text(page_html, encoding="utf-8")
         articles.append({"title": title, "description": description, "date": date, "slug": slug, "game": game})
 
     articles.sort(key=lambda a: a["date"], reverse=True)
@@ -147,7 +147,7 @@ def build():
         root="",
         year=datetime.now().year,
     )
-    (SITE_DIR / "index.html").write_text(index_html)
+    (SITE_DIR / "index.html").write_text(index_html, encoding="utf-8")
 
     # about / disclosure page
     about_html = template.render(
@@ -171,7 +171,7 @@ def build():
         root="",
         year=datetime.now().year,
     )
-    (SITE_DIR / "about.html").write_text(about_html)
+    (SITE_DIR / "about.html").write_text(about_html, encoding="utf-8")
 
     # sitemap.xml
     urls = ["", "about.html"] + [f"articles/{a['slug']}.html" for a in articles]
@@ -179,10 +179,12 @@ def build():
     for u in urls:
         sitemap.append(f"  <url><loc>{SITE_URL}/{u}</loc></url>")
     sitemap.append("</urlset>")
-    (SITE_DIR / "sitemap.xml").write_text("\n".join(sitemap))
+    (SITE_DIR / "sitemap.xml").write_text("\n".join(sitemap), encoding="utf-8")
 
     # robots.txt
-    (SITE_DIR / "robots.txt").write_text(f"User-agent: *\nAllow: /\nSitemap: {SITE_URL}/sitemap.xml\n")
+    (SITE_DIR / "robots.txt").write_text(
+        f"User-agent: *\nAllow: /\nSitemap: {SITE_URL}/sitemap.xml\n", encoding="utf-8"
+    )
 
     print(f"Built {len(articles)} article(s) into {SITE_DIR}/")
 
