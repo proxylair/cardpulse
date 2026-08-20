@@ -147,6 +147,16 @@ scarcity.</p>
     measurementId: "G-74HGB8C38Z"
   };
   window.FCM_VAPID_KEY = "BBDTPow0aYaI0AckkV9m98cduvyXGsd7Y8_M3sBLA29hvth5U5LO9csOW5bk4DLHI15R2sohtGWqEWsC0Yd6QJg";
+  // Firebase App Check -- optional hardening so only real page loads of
+  // this site (not a script hitting the Firestore REST API directly with
+  // a copy-pasted config) can read/write subscriber docs. Left blank on
+  // purpose: activating App Check client-side does nothing until it's
+  // also turned on and *enforced* in the Firebase console, and enforcing
+  // it before this key is real would break every subscribe/watchlist
+  // write for every visitor. Fill in once that's done -- see
+  // APP_CHECK_SETUP.md for the exact console steps. Until then this stays
+  // "" and subscribe.js skips App Check entirely, same as today.
+  window.APPCHECK_SITE_KEY = "";
   // Same "" (index/about/methodology) or "../" (articles) prefix used by
   // every other ../-relative link on this page -- subscribe.js
   // needs it too, to register firebase-messaging-sw.js at the actual site
@@ -158,6 +168,7 @@ scarcity.</p>
 <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js" defer></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-messaging-compat.js" defer></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js" defer></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-check-compat.js" defer></script>
 <script src="../subscribe.js" defer></script>
 </body>
 </html>

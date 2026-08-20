@@ -12,11 +12,20 @@ rules_version = '2';
 // "Change my followed games" and "turn off alerts" are both done from
 // the client as delete-then-recreate (see subscribe.js) rather than an
 // update, so update stays fully denied -- one fewer rule to get wrong.
+//
+// watchedCards is the client-side "Keep an eye on this" localStorage
+// watchlist, synced in the same delete-then-recreate way whenever it
+// changes (see subscribe.js's cardpulse:watchlist-changed listener) so
+// send_alerts.py can alert on a specific watched card even outside the
+// subscriber's followed games. It's optional -- omitted entirely for a
+// subscriber with an empty watchlist -- and capped well above any
+// realistic real usage; a scripted flood attempt is the only way anyone
+// would ever hit that cap.
 service cloud.firestore {
   match /databases/{database}/documents {
     match /push_subscribers/{tokenId} {
       allow create: if request.resource.data.keys().hasOnly(
-                         ['token', 'followedGames', 'userAgent', 'createdAt']
+                         ['token', 'followedGames', 'userAgent', 'createdAt', 'watchedCards']
                        )
                      // doc ID must match the token inside it -- stops one
                      // visitor from writing over another's document.
@@ -39,7 +48,10 @@ service cloud.firestore {
                      // proves the client actually used serverTimestamp()
                      // rather than sending an arbitrary client-controlled
                      // date.
-                     && request.resource.data.createdAt == request.time;
+                     && request.resource.data.createdAt == request.time
+                     && (!('watchedCards' in request.resource.data)
+                         || (request.resource.data.watchedCards is list
+                             && request.resource.data.watchedCards.size() <= 200));
 
       allow delete: if true;
       allow read, update: if false;

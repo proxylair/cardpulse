@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>You're offline | CardPulse</title>
+<!--
+  Deliberately NOT rendered through templates/base.html: base.html pulls
+  in Google Fonts and the Firebase SDK from external CDNs, which is
+  exactly the kind of request that won't succeed while offline. This page
+  is the fallback shown BY the service worker's fetch handler precisely
+  when the network already failed, so it has to be fully self-contained
+  -- no external requests, no dependency on style.css having been cached
+  successfully either (inline styles only).
+-->
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    background:
+      radial-gradient(1200px 400px at 10% -10%, rgba(42, 120, 214, 0.10), transparent),
+      radial-gradient(1200px 400px at 90% 0%, rgba(235, 104, 52, 0.10), transparent),
+      #fdfbf6;
+    color: #17171a;
+    text-align: center;
+    padding: 24px;
+  }
+  .card {
+    max-width: 420px;
+  }
+  .mark {
+    width: 72px;
+    height: 72px;
+    border-radius: 18px;
+    margin: 0 auto 18px;
+    background: linear-gradient(135deg, #2a78d6, #4a3aa7, #eb6834);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .mark svg { width: 40px; height: 40px; }
+  h1 { font-size: 1.4rem; margin: 0 0 10px; }
+  p { color: #63615b; line-height: 1.6; margin: 0 0 20px; }
+  button {
+    background: linear-gradient(135deg, #2a78d6, #1c5cab);
+    color: #fff;
+    border: none;
+    border-radius: 999px;
+    padding: 11px 26px;
+    font-weight: 700;
+    font-size: 0.9rem;
+    cursor: pointer;
+  }
+  button:hover { filter: brightness(1.06); }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="mark" aria-hidden="true">
+    <svg viewBox="0 0 512 512" fill="none" stroke="#ffffff" stroke-width="34" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M48,266 L146,266 L182,218 L222,318 L266,96 L306,400 L338,266 L370,266 L402,232 L432,266 L464,266"/>
+    </svg>
+  </div>
+  <h1>You're offline</h1>
+  <p>CardPulse needs a connection to show current prices. Whatever pages you've already visited this session may still be available -- try going back, or reconnect and reload.</p>
+  <button type="button" onclick="location.reload()">Try again</button>
+</div>
+</body>
+</html>

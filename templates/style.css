@@ -380,6 +380,7 @@ nav a:hover::after { width: 100%; }
   overflow: hidden;
 }
 .quick-hit-price { font-size: 0.78rem; color: var(--muted); font-weight: 700; }
+.quick-hit-body .sparkline { display: block; width: 100%; height: 20px; margin-top: 4px; }
 
 /* ---------- Section headings (movers, related, latest analysis) ---------- */
 
@@ -452,6 +453,43 @@ nav a:hover::after { width: 100%; }
 .mover-pct { font-weight: 800; font-size: 1.05rem; }
 .mover-pct.up { color: #0ca30c; }
 .mover-pct.down { color: #d03b3b; }
+.mover-card .sparkline { display: block; width: 100%; height: 24px; margin-top: 2px; }
+
+/* ---------- Market Pulse by Game (per-game rollup tiles) ---------- */
+
+.game-pulse-section { margin-top: 4px; }
+.game-pulse-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 14px;
+  margin: 0 0 36px;
+}
+.pulse-tile {
+  background: var(--surface);
+  border-radius: 12px;
+  box-shadow: var(--shadow-sm);
+  padding: 14px 16px;
+  border-left: 5px solid var(--game-default);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.pulse-tile.game-mtg { border-left-color: var(--game-mtg); }
+.pulse-tile.game-pokemon { border-left-color: var(--game-pokemon); }
+.pulse-tile.game-onepiece { border-left-color: var(--game-onepiece); }
+.pulse-tile.game-lorcana { border-left-color: var(--game-lorcana); }
+.pulse-tile.game-riftbound { border-left-color: var(--game-riftbound); }
+.pulse-tile.game-community { border-left-color: var(--game-community); }
+.pulse-tile .tag { align-self: flex-start; }
+.pulse-quiet { color: var(--muted); font-size: 0.85rem; }
+.pulse-stat { font-size: 0.85rem; color: var(--ink); }
+.pulse-avg { font-weight: 800; }
+.pulse-avg.up { color: #0ca30c; }
+.pulse-avg.down { color: #d03b3b; }
+.pulse-top { font-size: 0.82rem; color: var(--muted); }
+.pulse-top-pct { font-weight: 700; }
+.pulse-top-pct.up { color: #0ca30c; }
+.pulse-top-pct.down { color: #d03b3b; }
 
 /* ---------- Momentum badges (build_site.py's classify_momentum) ---------- */
 
@@ -473,13 +511,17 @@ nav a:hover::after { width: 100%; }
   vertical-align: middle;
 }
 
-/* ---------- Watchlist ("Keep an eye on this") ---------- */
+/* ---------- Card action buttons (watchlist heart + share) ---------- */
 
-.watch-btn {
+.card-actions {
   position: absolute;
   top: 8px;
   right: 8px;
   z-index: 2;
+  display: flex;
+  gap: 6px;
+}
+.watch-btn, .share-btn {
   width: 30px;
   height: 30px;
   border: none;
@@ -496,11 +538,13 @@ nav a:hover::after { width: 100%; }
   transition: transform 0.12s ease, color 0.12s ease;
   padding: 0;
 }
-.watch-btn:hover { transform: scale(1.1); }
+.watch-btn:hover, .share-btn:hover { transform: scale(1.1); }
 .watch-btn.watching { color: var(--accent-2); }
-.watch-btn .watch-icon { pointer-events: none; }
+.watch-btn .watch-icon, .share-btn .share-icon { pointer-events: none; }
+.share-btn:hover { color: var(--accent); }
 
-.quick-hits-strip .watch-btn { top: 6px; right: 6px; width: 26px; height: 26px; font-size: 0.9rem; }
+.quick-hits-strip .card-actions { top: 6px; right: 6px; gap: 4px; }
+.quick-hits-strip .watch-btn, .quick-hits-strip .share-btn { width: 26px; height: 26px; font-size: 0.9rem; }
 
 /* "Cards You're Watching" reuses .quick-hits-section / .quick-hits-strip --
    #watchlist-section just needs the [hidden] no-JS/empty-watchlist fallback,
@@ -536,6 +580,68 @@ nav a:hover::after { width: 100%; }
   padding: 2px 4px;
 }
 .visit-banner-close:hover { color: var(--ink); }
+
+/* ---------- Check Your List (paste-in bulk price checker) ---------- */
+
+.list-checker-section { margin: 0 0 36px; }
+.list-checker-section > .meta { margin: 0 0 12px; }
+.list-checker-textarea {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  padding: 12px 14px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.85rem;
+  color: var(--ink);
+  resize: vertical;
+  box-shadow: var(--shadow-sm);
+}
+.list-checker-textarea:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+.list-checker-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 10px 0 16px;
+}
+.list-checker-run {
+  background: linear-gradient(135deg, var(--accent), #1c5cab);
+  color: #fff;
+  border: none;
+  border-radius: 999px;
+  padding: 10px 22px;
+  font-weight: 700;
+  font-size: 0.88rem;
+  cursor: pointer;
+}
+.list-checker-run:hover { filter: brightness(1.06); }
+.list-checker-run:disabled { opacity: 0.6; cursor: default; }
+.list-checker-status { font-size: 0.82rem; color: var(--muted); }
+.list-checker-results { display: flex; flex-direction: column; gap: 10px; }
+.list-check-row {
+  background: var(--surface);
+  border-radius: 12px;
+  box-shadow: var(--shadow-sm);
+  padding: 10px 14px;
+}
+.list-check-query { font-size: 0.8rem; color: var(--muted); font-weight: 700; margin-bottom: 6px; }
+.list-check-matches { display: flex; flex-wrap: wrap; gap: 8px; }
+.list-check-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg);
+  border-radius: 10px;
+  padding: 6px 10px;
+  text-decoration: none;
+  color: var(--ink);
+  font-size: 0.8rem;
+  border: 1px solid var(--line);
+}
+.list-check-chip:hover { border-color: var(--accent); }
+.list-check-chip .set-name { color: var(--muted); }
+.list-check-chip .price { font-weight: 800; }
+.list-check-none { font-size: 0.85rem; color: var(--muted); font-style: italic; }
 
 /* ---------- Related articles (bottom of article pages) ---------- */
 

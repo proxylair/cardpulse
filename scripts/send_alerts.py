@@ -65,14 +65,37 @@ def mark_alerted(stamp):
     LAST_ALERT_MARKER.write_text(stamp)
 
 
-def movers_for_subscriber(all_movers, followed_slugs):
+def movers_for_subscriber(all_movers, followed_slugs, watched_keys=None):
     """Empty/missing followed_slugs means the subscriber hit "Skip, show
     me everything" (or subscribed before any game selection existed) --
-    that's every mover, not none."""
+    that's every mover, not none. watched_keys are card_key()s from the
+    subscriber's client-side "Keep an eye on this" watchlist (synced into
+    Firestore by subscribe.js) -- a watched card that clears this week's
+    movers filter is included REGARDLESS of its game, on top of whatever
+    the subscriber's followed-games selection already covers. A card only
+    ever reaches watched_keys by actually clearing the movers filter in
+    the first place (see compute_market_snapshot) -- this never alerts on
+    every price tick, only on the same "significant move" bar as everyone
+    else's digest."""
+    watched_keys = watched_keys or set()
     if not followed_slugs:
-        return all_movers
-    labels = {SLUG_TO_LABEL.get(s) for s in followed_slugs}
-    return [m for m in all_movers if m["game_label"] in labels]
+        game_matches = all_movers
+    else:
+        labels = {SLUG_TO_LABEL.get(s) for s in followed_slugs}
+        game_matches = [m for m in all_movers if m["game_label"] in labels]
+
+    if not watched_keys:
+        return game_matches
+
+    watch_matches = [m for m in all_movers if m.get("key") in watched_keys]
+    seen = set()
+    combined = []
+    for m in game_matches + watch_matches:
+        if m["key"] in seen:
+            continue
+        seen.add(m["key"])
+        combined.append(m)
+    return combined
 
 
 def build_message(movers):
@@ -166,14 +189,23 @@ def main():
     targets = []
     skipped = 0
     per_game_counts = {}
+    watchlist_assisted = 0
     for doc in subscribers:
         data = doc.to_dict() or {}
         token = data.get("token", doc.id)
         followed = data.get("followedGames") or []
-        relevant = movers_for_subscriber(all_movers, followed)
+        watched = set(data.get("watchedCards") or [])
+        relevant = movers_for_subscriber(all_movers, followed, watched)
         if not relevant:
             skipped += 1
             continue
+        # Did the watchlist pull in anything this subscriber's followed
+        # games wouldn't have surfaced on their own? Reporting-only, not
+        # part of targeting -- lets --dry-run/--send show whether the
+        # feature is actually doing anything for real subscribers.
+        game_only = movers_for_subscriber(all_movers, followed)
+        if watched and len(relevant) > len(game_only):
+            watchlist_assisted += 1
         relevant.sort(key=lambda m: abs(m["pct"]), reverse=True)
         targets.append((doc.id, token, relevant))
         for slug in (followed or ["(unfiltered)"]):
@@ -191,12 +223,15 @@ def main():
             title, body = build_message(relevant)
             print(f"[dry-run] would notify {token[:12]}...: {title} -- {body}")
         print(f"\n[dry-run] Would notify {len(targets)} subscriber(s), skip {skipped} "
-              "(no movers in their followed games). Nothing was sent.")
+              "(no movers in their followed games or watchlist). "
+              f"{watchlist_assisted} of those got at least one extra mover from their watchlist. "
+              "Nothing was sent.")
         return
 
     if args.send:
         print(f"\nAbout to send real notifications:")
         print(f"  Recipients: {len(targets)}  |  Skipped (no relevant movers): {skipped}")
+        print(f"  Watchlist-assisted: {watchlist_assisted} (got a mover their followed games alone wouldn't have)")
         for slug, count in sorted(per_game_counts.items(), key=lambda kv: -kv[1]):
             print(f"    {slug}: {count}")
         confirm = input("\nType SEND to confirm: ")

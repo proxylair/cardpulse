@@ -171,21 +171,28 @@ def load_all_snapshots(max_snapshots=8):
     return [(f.stem, json.loads(f.read_text(encoding="utf-8"))) for f in files]
 
 
-def build_momentum_map(snapshots):
+def build_price_history(snapshots):
     """snapshots: output of load_all_snapshots(). Returns {card_key:
-    momentum-dict-or-None} for every card present in the latest snapshot."""
-    if len(snapshots) < 2:
-        return {}
-    latest_date, latest = snapshots[-1]
-
-    # date -> game_key -> card_key -> price, built once up front instead of
-    # re-scanning every snapshot per card.
-    price_history = {}  # card_key -> [(date, price), ...] oldest->newest
+    [(date, price_or_None), ...]} oldest->newest, built once and shared by
+    both the momentum engine and the sparkline renderer so they work off
+    identical underlying data instead of two separate scans."""
+    price_history = {}
     for date, snap in snapshots:
         for game in snap.get("games", {}).values():
             for c in game.get("cards", []):
                 key = card_key(c["name"], c["set"])
                 price_history.setdefault(key, []).append((date, c.get("market_price")))
+    return price_history
+
+
+def build_momentum_map(snapshots, price_history=None):
+    """snapshots: output of load_all_snapshots(). Returns {card_key:
+    momentum-dict-or-None} for every card present in the latest snapshot."""
+    if len(snapshots) < 2:
+        return {}
+    latest_date, latest = snapshots[-1]
+    if price_history is None:
+        price_history = build_price_history(snapshots)
 
     momentum = {}
     for game in latest.get("games", {}).values():
@@ -194,6 +201,43 @@ def build_momentum_map(snapshots):
             series = _pct_series(price_history.get(key, []))
             momentum[key] = classify_momentum(series)
     return momentum
+
+
+# ---------- Sparklines ----------
+# Tiny inline SVG trend lines embedded directly in each mover/quick-hit
+# card at build time -- no client-side fetch, no charting library. Reuses
+# the same price_history the momentum engine already builds.
+SPARKLINE_WIDTH = 84
+SPARKLINE_HEIGHT = 26
+SPARKLINE_MIN_POINTS = 3  # 1-2 priced points is a dot/line segment, not a trend
+
+
+def render_sparkline(prices, direction):
+    """prices: [(date, price_or_None), ...] oldest->newest for one card.
+    Returns a small inline SVG polyline, or "" if there isn't enough
+    priced history yet to draw anything meaningful. Color follows the
+    same up/down direction as the card's pct badge rather than deriving
+    its own (a card can be net-up over its history but net-down this
+    week -- the badge's direction is the one the visitor is looking at)."""
+    points = [p for _, p in prices if p is not None]
+    if len(points) < SPARKLINE_MIN_POINTS:
+        return ""
+    lo, hi = min(points), max(points)
+    span = hi - lo
+    n = len(points)
+    coords = []
+    for i, p in enumerate(points):
+        x = (i / (n - 1)) * SPARKLINE_WIDTH
+        y = SPARKLINE_HEIGHT - ((p - lo) / span * SPARKLINE_HEIGHT if span > 0 else SPARKLINE_HEIGHT / 2)
+        coords.append(f"{x:.1f},{y:.1f}")
+    color = "#0ca30c" if direction == "up" else "#d03b3b"
+    return (
+        f'<svg class="sparkline" viewBox="0 0 {SPARKLINE_WIDTH} {SPARKLINE_HEIGHT}" '
+        f'preserveAspectRatio="none" aria-hidden="true">'
+        f'<polyline points="{" ".join(coords)}" fill="none" stroke="{color}" '
+        f'stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>'
+        f'</svg>'
+    )
 
 
 def style_buy_cta(html_body: str) -> str:
@@ -223,6 +267,48 @@ def style_buy_cta(html_body: str) -> str:
     return html_body
 
 
+def build_game_pulse(movers, latest_games):
+    """Per-game rollup for the homepage 'Market Pulse' strip -- one tile per
+    tracked game (Magic, Pokemon, etc) summarizing how many of its cards
+    cleared the movers filter this week, the average swing, and the single
+    biggest mover. Lets a visitor who only collects one game skip straight
+    to it instead of scanning the combined movers grid. latest_games is the
+    latest snapshot's "games" dict (game_key -> {"label":..., "cards": [...]})
+    -- iterating it (not GAME_META) means this naturally skips
+    "Collecting & Community", which is an article-only category with no
+    actual price data behind it."""
+    by_game = {}
+    for m in movers:
+        by_game.setdefault(m["game_label"], []).append(m)
+
+    pulses = []
+    for game_key, game in latest_games.items():
+        label = game.get("label", game_key)
+        game_movers = by_game.get(label, [])
+        if game_movers:
+            avg_pct = sum(m["pct"] for m in game_movers) / len(game_movers)
+            top = max(game_movers, key=lambda m: abs(m["pct"]))
+        else:
+            avg_pct = None
+            top = None
+        pulses.append({
+            "label": label,
+            "cards_tracked": len(game.get("cards", [])),
+            "mover_count": len(game_movers),
+            "avg_pct": avg_pct,
+            "top": top,
+        })
+
+    # Most active games first (most qualifying movers), ties broken by the
+    # single biggest move -- puts whatever's actually happening up top
+    # rather than in a fixed game order.
+    pulses.sort(
+        key=lambda p: (p["mover_count"], abs(p["top"]["pct"]) if p["top"] else 0),
+        reverse=True,
+    )
+    return pulses
+
+
 def compute_market_snapshot():
     """Reads the two most recent price snapshots and returns real movers +
     coverage stats for the homepage. Returns None if fewer than 2 snapshots
@@ -242,7 +328,11 @@ def compute_market_snapshot():
     # Momentum needs more than the latest 2 snapshots (see build_momentum_map)
     # -- {} until there's enough weekly history on file, at which point
     # labels start appearing automatically with no code change needed.
-    momentum_map = build_momentum_map(load_all_snapshots())
+    # price_history is shared with the sparkline renderer below so both
+    # features read the exact same underlying series.
+    all_snapshots = load_all_snapshots()
+    price_history = build_price_history(all_snapshots)
+    momentum_map = build_momentum_map(all_snapshots, price_history)
 
     movers = []
     if len(files) >= 2:
@@ -292,6 +382,7 @@ def compute_market_snapshot():
                 movers.append({
                     "name": c["name"],
                     "key": key,
+                    "set": c["set"],
                     "game_label": label,
                     "old_price": old_price,
                     "new_price": new_price,
@@ -299,6 +390,7 @@ def compute_market_snapshot():
                     "image": c.get("image"),
                     "url": c.get("url"),
                     "momentum": momentum_map.get(key),
+                    "sparkline": render_sparkline(price_history.get(key, []), "up" if pct > 0 else "down"),
                 })
         movers.sort(key=lambda m: m["pct"], reverse=True)
 
@@ -313,7 +405,8 @@ def compute_market_snapshot():
     # not capped at 3+3) so the scroll strip has enough to be worth scrolling.
     quick_hits = sorted(movers, key=lambda m: abs(m["pct"]), reverse=True)[:QUICK_HITS_LIMIT]
     stats["prior_snapshot"] = json.loads(files[-2].read_text(encoding="utf-8")).get("fetched_at", "")[:10] if len(files) >= 2 else None
-    return {"stats": stats, "gainers": gainers, "losers": losers, "quick_hits": quick_hits}
+    game_pulse = build_game_pulse(movers, latest.get("games", {}))
+    return {"stats": stats, "gainers": gainers, "losers": losers, "quick_hits": quick_hits, "game_pulse": game_pulse}
 
 
 def render_momentum_badge(m, css_class="momentum-badge"):
@@ -327,15 +420,53 @@ def render_momentum_badge(m, css_class="momentum-badge"):
     return f'<span class="{css_class}" title="{mo["detail"]}">{mo["emoji"]} {mo["label"]}</span>'
 
 
+def html_attr_escape(s):
+    """Minimal escaping for interpolating a value into an HTML attribute.
+    Card names occasionally contain literal quote marks (a handful of real
+    Magic/Pokemon card names do) which would otherwise break out of a
+    "..."-delimited attribute and corrupt the markup -- cheap enough to
+    apply everywhere a card name/set lands in an attribute rather than
+    assuming it never happens."""
+    return (
+        str(s)
+        .replace("&", "&amp;")
+        .replace('"', "&quot;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+    )
+
+
 def render_watch_button(key, name):
     """'Keep an eye on this' watchlist toggle. Purely client-side --
     engagement.js reads/writes localStorage; the button just needs a stable
     data-card-key (see card_key()) to key off of. Rendered unwatched by
     default; engagement.js repaints it on page load from localStorage."""
+    name = html_attr_escape(name)
     return (
         f'<button type="button" class="watch-btn" data-card-key="{key}" '
         f'data-card-name="{name}" aria-pressed="false" aria-label="Add {name} to your watchlist">'
         f'<span class="watch-icon">♡</span></button>'
+    )
+
+
+def render_share_button(m):
+    """Triggers engagement.js's client-side canvas image generator, which
+    renders a branded shareable PNG from the data-* attributes here. No
+    server-side image generation, and deliberately no TCGplayer product
+    photo in the rendered image -- that photo is cross-origin, and drawing
+    a cross-origin image onto a <canvas> "taints" it, which makes
+    toBlob()/toDataURL() throw instead of producing a shareable file. Reused
+    as-is for quick-hits, since snapshot["quick_hits"] entries are the same
+    mover dicts as the Biggest Movers grid (see compute_market_snapshot)."""
+    name = html_attr_escape(m["name"])
+    game_label = html_attr_escape(m["game_label"])
+    set_name = html_attr_escape(m.get("set", ""))
+    return (
+        f'<button type="button" class="share-btn" data-card-name="{name}" '
+        f'data-set="{set_name}" data-game-label="{game_label}" '
+        f'data-old-price="{m["old_price"]:.2f}" data-new-price="{m["new_price"]:.2f}" '
+        f'data-pct="{m["pct"]:.1f}" aria-label="Share {name}\'s price move as an image">'
+        f'<span class="share-icon">↗</span></button>'
     )
 
 
@@ -345,12 +476,13 @@ def render_mover_card(m):
     arrow = "▲" if direction == "up" else "▼"
     return (
         f'<div class="mover-card {direction} {gslug}" data-card-key="{m["key"]}">'
-        f'{render_watch_button(m["key"], m["name"])}'
+        f'<div class="card-actions">{render_watch_button(m["key"], m["name"])}{render_share_button(m)}</div>'
         f'<span class="tag {gslug}">{game_icon(m["game_label"])} {m["game_label"]}</span>'
         f'<strong>{m["name"]}</strong>'
         f'{render_momentum_badge(m)}'
         f'<span class="mover-price">${m["old_price"]:.2f} → ${m["new_price"]:.2f}</span>'
         f'<span class="mover-pct {direction}">{arrow} {m["pct"]:+.1f}%</span>'
+        f'{m["sparkline"]}'
         f'</div>'
     )
 
@@ -369,12 +501,13 @@ def render_quick_hit(m):
     momentum_chip = render_momentum_badge(m, css_class="momentum-chip")
     return (
         f'<div class="quick-hit {gslug}" data-card-key="{m["key"]}">'
-        f'{render_watch_button(m["key"], m["name"])}'
+        f'<div class="card-actions">{render_watch_button(m["key"], m["name"])}{render_share_button(m)}</div>'
         f'{link_open}{img}'
         f'<div class="quick-hit-body">'
         f'<span class="quick-hit-pct {direction}">{arrow} {m["pct"]:+.0f}%</span>{momentum_chip}'
         f'<strong>{m["name"]}</strong>'
         f'<span class="quick-hit-price">${m["new_price"]:.2f}</span>'
+        f'{m["sparkline"]}'
         f'</div>{link_close}'
         f'</div>'
     )
@@ -388,6 +521,44 @@ def render_quick_hits(snapshot):
         "<section class='quick-hits-section'>"
         "<h2 class='section-heading'>⚡ Quick Hits</h2>"
         f"<div class='quick-hits-strip'>{cards}</div>"
+        "</section>"
+    )
+
+
+def render_game_pulse_tile(p):
+    gslug = game_slug(p["label"])
+    icon = game_icon(p["label"])
+    if p["mover_count"] == 0:
+        body = "<span class='pulse-quiet'>No significant moves this week</span>"
+    else:
+        avg_dir = "up" if p["avg_pct"] > 0 else "down"
+        avg_arrow = "▲" if avg_dir == "up" else "▼"
+        top = p["top"]
+        top_dir = "up" if top["pct"] > 0 else "down"
+        top_arrow = "▲" if top_dir == "up" else "▼"
+        plural = "" if p["mover_count"] == 1 else "s"
+        body = (
+            f"<span class='pulse-stat'>{p['mover_count']} card{plural} moved "
+            f"<span class='pulse-avg {avg_dir}'>{avg_arrow} {p['avg_pct']:+.1f}% avg</span></span>"
+            f"<span class='pulse-top'>Top: {top['name']} "
+            f"<span class='pulse-top-pct {top_dir}'>{top_arrow} {top['pct']:+.1f}%</span></span>"
+        )
+    return (
+        f"<div class='pulse-tile {gslug}'>"
+        f"<span class='tag {gslug}'>{icon} {p['label']}</span>"
+        f"{body}"
+        f"</div>"
+    )
+
+
+def render_game_pulse(snapshot):
+    if snapshot is None or not snapshot.get("game_pulse"):
+        return ""
+    tiles = "".join(render_game_pulse_tile(p) for p in snapshot["game_pulse"])
+    return (
+        "<section class='game-pulse-section'>"
+        "<h2 class='section-heading'>\U0001F3AF Market Pulse by Game</h2>"
+        f"<div class='game-pulse-grid'>{tiles}</div>"
         "</section>"
     )
 
@@ -438,12 +609,41 @@ def render_watchlist_section():
     )
 
 
+def render_list_checker_section():
+    """Static shell for the 'Check Your List' paste-in tool -- a textarea
+    where a visitor pastes a TCGplayer-style mass-entry list (quantities
+    optional, one card per line) and engagement.js matches each line
+    against card-index.json entirely client-side (no upload, nothing
+    leaves the browser). Results are injected into #list-checker-results;
+    this function only emits the static form shell."""
+    return (
+        "<section id='list-checker-section' class='list-checker-section'>"
+        "<h2 class='section-heading'>\U0001F4CB Check Your List</h2>"
+        "<p class='meta'>Paste a list of cards (quantities optional, one per line) and see "
+        "which ones we're tracking right now -- nothing you paste leaves your browser.</p>"
+        "<textarea id='list-checker-input' class='list-checker-textarea' rows='6' "
+        "placeholder='4 Lightning Bolt&#10;1 Charizard ex&#10;Roronoa Zoro (ST32-005)'></textarea>"
+        "<div class='list-checker-actions'>"
+        "<button type='button' id='list-checker-run' class='list-checker-run'>Check my list</button>"
+        "<span id='list-checker-status' class='list-checker-status'></span>"
+        "</div>"
+        "<div id='list-checker-results' class='list-checker-results'></div>"
+        "</section>"
+    )
+
+
 def build_engagement_data(snapshot):
     """Writes the two small JSON files engagement.js relies on:
       - card-index.json: every priced card in the latest snapshot, keyed by
         card_key(), so a watched card can be resolved back into a name/
         price/image/link even in a week where it isn't one of the "movers"
-        cards actually rendered with a heart button.
+        cards actually rendered with a heart button. Also the lookup table
+        behind the "Check Your List" paste-in tool (client-side name
+        matching -- see engagement.js). Momentum is recomputed here rather
+        than threaded in from compute_market_snapshot() so this function
+        stays self-contained; re-running it over ~8 snapshots x a few
+        thousand cards is cheap enough that it isn't worth the extra
+        parameter plumbing.
       - snapshot-summary.json: a tiny digest (last_updated + how many cards
         moved + the top few) that the "Since Your Last Visit" banner polls
         to decide whether it has anything worth telling a returning visitor.
@@ -459,6 +659,9 @@ def build_engagement_data(snapshot):
     latest = json.loads(files[-1].read_text(encoding="utf-8"))
     summary["last_updated"] = latest.get("fetched_at", "")[:10]
 
+    all_snapshots = load_all_snapshots()
+    momentum_map = build_momentum_map(all_snapshots)
+
     for game_key, game in latest.get("games", {}).items():
         label = game.get("label", game_key)
         for c in game.get("cards", []):
@@ -473,6 +676,7 @@ def build_engagement_data(snapshot):
                 "price": price,
                 "image": c.get("image"),
                 "url": c.get("url"),
+                "momentum": momentum_map.get(key),
             }
 
     if snapshot is not None:
@@ -548,6 +752,11 @@ def build():
         ROOT / "templates" / "firebase-messaging-sw.js",
         SITE_DIR / "firebase-messaging-sw.js",
     )
+    # Offline fallback page the service worker serves for a failed
+    # navigation with nothing cached yet -- must also land at the site
+    # root so it resolves correctly under caches.match(OFFLINE_URL)
+    # (relative to the SW's own scope) on a GitHub Pages project subpath.
+    shutil.copyfile(ROOT / "templates" / "offline.html", SITE_DIR / "offline.html")
     # Icons -- favicon, apple-touch-icon, and the sizes used by both the
     # web app manifest (installed-icon) and push notifications
     # (firebase-messaging-sw.js's icon/badge).
@@ -643,8 +852,10 @@ def build():
     )
     snapshot = compute_market_snapshot()
     market_html = render_market_section(snapshot)
+    game_pulse_html = render_game_pulse(snapshot)
     quick_hits_html = render_quick_hits(snapshot)
     watchlist_html = render_watchlist_section()
+    list_checker_html = render_list_checker_section()
     card_index, engagement_summary = build_engagement_data(snapshot)
     (SITE_DIR / "card-index.json").write_text(json.dumps(card_index), encoding="utf-8")
     (SITE_DIR / "snapshot-summary.json").write_text(json.dumps(engagement_summary), encoding="utf-8")
@@ -659,8 +870,10 @@ def build():
             f"<div class='game-strip'>{game_pills}</div>"
             "</div>"
             f"{market_html}"
+            f"{game_pulse_html}"
             f"{quick_hits_html}"
             f"{watchlist_html}"
+            f"{list_checker_html}"
             "<h2 class='section-heading'>Latest Analysis</h2>"
             f"<ul class='article-grid'>{list_items}</ul>"
         ),
@@ -691,12 +904,16 @@ def build():
             "<p>If you click \"Get price alerts,\" your browser stores a notification "
             "token (a random ID tied to your browser install, not to you personally), "
             "along with which games you chose to follow and your browser's user-agent "
-            "string. We use it only to send you the weekly price-mover digest you "
-            "signed up for -- we don't sell it, share it, or use it for anything else. "
-            "Click \"Manage\" next to the alerts indicator any time to change which "
-            "games you follow or turn alerts off entirely, which deletes that data. "
-            "We don't use tracking cookies or run analytics on this site beyond basic, "
-            "aggregate hosting logs.</p>"
+            "string. If you've added cards to your watchlist (the heart button on mover "
+            "cards), we also store which cards those are, so we can alert you when one of "
+            "them moves even outside your followed games -- that list stays in sync with "
+            "your watchlist automatically. We use all of this only to send you the weekly "
+            "price-mover digest you signed up for -- we don't sell it, share it, or use it "
+            "for anything else. Click \"Manage\" next to the alerts indicator any time to "
+            "change which games you follow or turn alerts off entirely, which deletes that "
+            "data (your watchlist itself lives only in your browser, separately -- turning "
+            "off alerts doesn't clear it). We don't use tracking cookies or run analytics "
+            "on this site beyond basic, aggregate hosting logs.</p>"
         ),
         root="",
         year=datetime.now().year,

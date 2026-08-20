@@ -26,6 +26,15 @@
 
   var TOKEN_KEY = "cardpulse_push_token"; // the active FCM token, or absent if not subscribed
   var GAMES_KEY = "cardpulse_push_games"; // last-known followedGames written to Firestore (avoids a client read)
+  // Must match engagement.js's WATCHLIST_KEY exactly -- that file owns the
+  // "Keep an eye on this" watchlist (reads/writes it, dispatches the
+  // cardpulse:watchlist-changed event below), this file only reads it to
+  // sync into the subscriber's Firestore doc. Not shared via a JS module
+  // (no build step, no bundler) -- the constant string IS the interface
+  // between the two files, same as every other localStorage key here.
+  var WATCHLIST_KEY = "cp_watchlist";
+  var WATCHLIST_SYNC_DEBOUNCE_MS = 1500;
+  var watchlistSyncTimer = null;
 
   var GAMES = [
     { slug: "game-mtg", icon: "🔮", name: "Magic: The Gathering" },
@@ -47,8 +56,32 @@
     );
   }
 
+  var appCheckActivated = false;
+
+  // App Check must be activated exactly once, right after initializeApp()
+  // and before any Firestore/Messaging call -- the compat SDK attaches an
+  // App Check token to every subsequent request automatically once
+  // activated, but does nothing retroactively for calls already made.
+  // Gated on window.APPCHECK_SITE_KEY being non-empty (see base.html) so
+  // this is a true no-op -- same behavior as today -- until that key is
+  // filled in with a real reCAPTCHA v3 site key and App Check enforcement
+  // is turned on for this project in the Firebase console.
+  function activateAppCheckIfConfigured(app) {
+    if (appCheckActivated) return;
+    appCheckActivated = true; // set before the call too -- never retry-loop on a bad key
+    if (!window.APPCHECK_SITE_KEY) return;
+    if (typeof firebase.appCheck !== "function") return; // SDK script failed to load/blocked -- degrade silently
+    try {
+      firebase.appCheck(app).activate(window.APPCHECK_SITE_KEY, true);
+    } catch (e) {
+      console.warn("[CardPulse] App Check activation failed -- continuing without it", e);
+    }
+  }
+
   function getApp() {
-    return firebase.apps.length ? firebase.apps[0] : firebase.initializeApp(window.firebaseConfig);
+    var app = firebase.apps.length ? firebase.apps[0] : firebase.initializeApp(window.firebaseConfig);
+    activateAppCheckIfConfigured(app);
+    return app;
   }
 
   function lsGet(key) {
@@ -92,6 +125,16 @@
     try {
       var raw = localStorage.getItem("cardpulse_followed_games");
       return raw ? JSON.parse(raw) : [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function getWatchlist() {
+    try {
+      var raw = localStorage.getItem(WATCHLIST_KEY);
+      var list = raw ? JSON.parse(raw) : [];
+      return Array.isArray(list) ? list : [];
     } catch (e) {
       return [];
     }
@@ -162,13 +205,21 @@
     return messaging;
   }
 
-  function writeSubscriberDoc(db, token, games) {
-    return db.collection("push_subscribers").doc(token).set({
+  function writeSubscriberDoc(db, token, games, watchedCards) {
+    var doc = {
       token: token,
       followedGames: games,
       userAgent: navigator.userAgent,
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
-    });
+    };
+    // Omit the field entirely for an empty watchlist rather than writing
+    // [] -- matches firestore.rules treating watchedCards as fully
+    // optional. Capped at 200 client-side too so a huge watchlist can
+    // never get the whole write rejected by the rules' size check.
+    if (watchedCards && watchedCards.length) {
+      doc.watchedCards = watchedCards.slice(-200);
+    }
+    return db.collection("push_subscribers").doc(token).set(doc);
   }
 
   function subscribe(button) {
@@ -195,8 +246,12 @@
       .then(function (token) {
         if (!token) return;
         var games = getFollowedGamesFromPersonalize();
+        // A visitor may have already built up a watchlist before ever
+        // clicking "Get price alerts" -- include it from the start rather
+        // than requiring a separate trip through Manage to pick it up.
+        var watchlist = getWatchlist();
         var db = firebase.firestore(app);
-        return writeSubscriberDoc(db, token, games).then(function () {
+        return writeSubscriberDoc(db, token, games, watchlist).then(function () {
           lsSet(TOKEN_KEY, token);
           lsSet(GAMES_KEY, JSON.stringify(games));
           render();
@@ -241,9 +296,11 @@
     var app = getApp();
     var db = firebase.firestore(app);
     // No update permission in the rules on purpose -- delete, then
-    // recreate under the same token with the new game list.
+    // recreate under the same token with the new game list. Carries the
+    // current watchlist along too, so opening Manage and saving always
+    // leaves both halves of targeting (games + watched cards) in sync.
     return db.collection("push_subscribers").doc(oldToken).delete()
-      .then(function () { return writeSubscriberDoc(db, oldToken, newGames); })
+      .then(function () { return writeSubscriberDoc(db, oldToken, newGames, getWatchlist()); })
       .then(function () {
         lsSet(GAMES_KEY, JSON.stringify(newGames));
         render();
@@ -252,6 +309,33 @@
         console.error("[CardPulse] saving alert preferences failed:", e);
       });
   }
+
+  function syncWatchedCards(watchlist) {
+    // Fires (debounced) whenever engagement.js's watchlist changes --
+    // keeps a subscriber's Firestore doc current with their watchlist
+    // automatically, so "alert me about cards I'm watching" doesn't
+    // silently go stale until they happen to reopen Manage. A no-op if
+    // they're not subscribed to push at all -- nothing to sync to.
+    var token = getToken_();
+    if (!token || !supported()) return;
+    var app = getApp();
+    var db = firebase.firestore(app);
+    db.collection("push_subscribers").doc(token).delete()
+      .then(function () { return writeSubscriberDoc(db, token, getGamesList(), watchlist); })
+      .catch(function (e) {
+        console.error("[CardPulse] syncing watchlist to alerts failed:", e);
+      });
+  }
+
+  document.addEventListener("cardpulse:watchlist-changed", function (evt) {
+    var watchlist = (evt.detail && evt.detail.watchlist) || getWatchlist();
+    if (watchlistSyncTimer) clearTimeout(watchlistSyncTimer);
+    // Debounced so a quick burst of heart-clicks becomes one Firestore
+    // write instead of one delete+recreate per click.
+    watchlistSyncTimer = setTimeout(function () {
+      syncWatchedCards(watchlist);
+    }, WATCHLIST_SYNC_DEBOUNCE_MS);
+  });
 
   function openManage() {
     var overlay = document.createElement("div");
