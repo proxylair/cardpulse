@@ -112,7 +112,15 @@
 
   function registerServiceWorkerWithConfig() {
     var configParam = encodeURIComponent(JSON.stringify(window.firebaseConfig));
-    return navigator.serviceWorker.register("/firebase-messaging-sw.js?firebaseConfig=" + configParam);
+    // Must resolve to the site's actual root (e.g.
+    // proxylair.github.io/cardpulse/firebase-messaging-sw.js), not the
+    // domain root -- a leading "/" would 404 on a GitHub Pages project
+    // subpath. window.CARDPULSE_ROOT is the same "" / "../" prefix base.html
+    // already uses for every other on-page link, so this resolves
+    // correctly relative to whichever page (index vs. an article) the
+    // visitor subscribed from.
+    var root = window.CARDPULSE_ROOT || "";
+    return navigator.serviceWorker.register(root + "firebase-messaging-sw.js?firebaseConfig=" + configParam);
   }
 
   function attachForegroundListener(app) {

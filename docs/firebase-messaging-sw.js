@@ -39,7 +39,12 @@ if (configParam) {
       body: body,
       icon: (payload.notification && payload.notification.icon) || "/icon-192.png",
       badge: "/icon-192.png",
-      data: { url: (payload.data && payload.data.url) || "/" }
+      // send_alerts.py always sets payload.data.url to the site's real
+      // full URL, so this fallback only matters for a message that
+      // somehow arrives without one -- self.registration.scope (not "/")
+      // so it still lands on the site's actual root on a GitHub Pages
+      // project subpath instead of the domain root.
+      data: { url: (payload.data && payload.data.url) || self.registration.scope }
     };
     self.registration.showNotification(title, options);
   });

@@ -123,6 +123,13 @@ multiple copies.</em></p>
     measurementId: "G-74HGB8C38Z"
   };
   window.FCM_VAPID_KEY = "BBDTPow0aYaI0AckkV9m98cduvyXGsd7Y8_M3sBLA29hvth5U5LO9csOW5bk4DLHI15R2sohtGWqEWsC0Yd6QJg";
+  // Same "" (index/about/methodology) or "../" (articles) prefix used by
+  // every other ../-relative link on this page -- subscribe.js
+  // needs it too, to register firebase-messaging-sw.js at the actual site
+  // root rather than the domain root (this site is served from a GitHub
+  // Pages project subpath, e.g. proxylair.github.io/cardpulse/, not from
+  // the domain root).
+  window.CARDPULSE_ROOT = "../";
 </script>
 <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js" defer></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-messaging-compat.js" defer></script>
