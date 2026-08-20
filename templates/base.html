@@ -21,6 +21,8 @@
     <a href="{{ root }}methodology.html">Methodology</a>
   </nav>
 </header>
+<div id="cp-follow-bar"></div>
+<div id="cp-notify-bar"></div>
 <main>
 {{ content|safe }}
 </main>
@@ -29,5 +31,32 @@
   <p class="footer-crosslink">Also from us: <a href="https://proxylair.com" target="_blank" rel="noopener">ProxyLair</a> -- custom TCG proxy cards for casual play and collecting.</p>
   <p>&copy; {{ year }} CardPulse. Not affiliated with Wizards of the Coast, TCGplayer, or eBay.</p>
 </footer>
+<script src="{{ root }}personalize.js" defer></script>
+
+<!--
+  Push notification opt-in (Firebase Cloud Messaging + Firestore).
+  TODO: fill in with the values from Firebase console:
+    - firebaseConfig: Project settings -> General -> "Your apps" -> web app -> Config
+    - FCM_VAPID_KEY:  Project settings -> Cloud Messaging -> Web configuration ->
+                       Web Push certificates -> key pair (starts with "B")
+  Until both are filled in, subscribe.js no-ops (renders nothing) so the
+  site works fine without them.
+-->
+<script>
+  window.firebaseConfig = {
+    apiKey: "AIzaSyB0fKfSx_Guu7zlOGhE5jihtyV_zYUN-hU",
+    authDomain: "cardpulse-84dd6.firebaseapp.com",
+    projectId: "cardpulse-84dd6",
+    storageBucket: "cardpulse-84dd6.firebasestorage.app",
+    messagingSenderId: "494495279763",
+    appId: "1:494495279763:web:15566153191def7a0ebb66",
+    measurementId: "G-74HGB8C38Z"
+  };
+  window.FCM_VAPID_KEY = "BBDTPow0aYaI0AckkV9m98cduvyXGsd7Y8_M3sBLA29hvth5U5LO9csOW5bk4DLHI15R2sohtGWqEWsC0Yd6QJg";
+</script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js" defer></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-messaging-compat.js" defer></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js" defer></script>
+<script src="{{ root }}subscribe.js" defer></script>
 </body>
 </html>

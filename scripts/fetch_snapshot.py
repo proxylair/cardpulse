@@ -42,6 +42,14 @@ GAMES = {
 # back further mostly adds noise (and a much bigger/slower fetch).
 GROUPS_PER_GAME = 5
 
+# Below this many priced cards for a single game, something's probably
+# wrong upstream (a failed groups/products call, an empty category, a
+# tcgcsv outage mid-pull) rather than that game genuinely having almost
+# nothing priced. Flagged loudly rather than silently saved as normal --
+# this feeds the same "don't publish/alert on broken data" principle as
+# build_site.py's snapshot-coverage check, just catching it earlier.
+MIN_CARDS_PER_GAME = 20
+
 ROOT = Path(__file__).resolve().parent.parent
 OUT_DIR = ROOT / "data" / "snapshots"
 
@@ -80,16 +88,24 @@ def fetch_game(category_id: int, limit: int):
         price_by_id = {p["productId"]: p for p in prices}
         for prod in products:
             price = price_by_id.get(prod["productId"])
-            if not price or not price.get("marketPrice"):
+            if not price:
+                continue
+            market_price = price.get("marketPrice")
+            # Defend against garbage upstream data (null, zero, negative,
+            # or a non-numeric value) rather than letting it flow through
+            # to movers math later, where a bad old_price/new_price of 0
+            # would produce a division-by-zero or a nonsense "+inf%" move.
+            if not isinstance(market_price, (int, float)) or market_price <= 0:
                 continue
             cards.append({
                 "name": prod.get("name"),
                 "set": group.get("name"),
                 "set_published": group.get("publishedOn"),
-                "market_price": price.get("marketPrice"),
+                "market_price": market_price,
                 "low_price": price.get("lowPrice"),
                 "high_price": price.get("highPrice"),
                 "url": prod.get("url"),
+                "image": prod.get("imageUrl"),
             })
         time.sleep(0.15)  # be polite to a free service
     return cards
@@ -98,17 +114,37 @@ def fetch_game(category_id: int, limit: int):
 def main():
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     snapshot = {"fetched_at": datetime.now(timezone.utc).isoformat(), "games": {}}
+    warnings = []
 
     for key, meta in GAMES.items():
         print(f"Fetching {meta['label']} ...", file=sys.stderr)
-        cards = fetch_game(meta["category_id"], GROUPS_PER_GAME)
+        try:
+            cards = fetch_game(meta["category_id"], GROUPS_PER_GAME)
+        except requests.RequestException as e:
+            # A whole-game failure (e.g. the /groups call itself, which
+            # isn't wrapped inside fetch_game) shouldn't lose the other
+            # four games' data -- save this one as empty and keep going,
+            # loudly, rather than crashing the entire weekly pull.
+            print(f"  !! {meta['label']} failed entirely: {e}", file=sys.stderr)
+            cards = []
         snapshot["games"][key] = {"label": meta["label"], "cards": cards}
         print(f"  -> {len(cards)} priced cards/products", file=sys.stderr)
+        if len(cards) < MIN_CARDS_PER_GAME:
+            warnings.append(
+                f"{meta['label']}: only {len(cards)} priced card(s) (expected at least "
+                f"{MIN_CARDS_PER_GAME}) -- likely a partial/broken fetch, not real data."
+            )
 
     stamp = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     out_path = OUT_DIR / f"{stamp}.json"
     out_path.write_text(json.dumps(snapshot, indent=2))
     print(f"Saved snapshot to {out_path}")
+
+    if warnings:
+        print("\n!! DATA HEALTH WARNINGS -- review before running find_movers.py/build_site.py:",
+              file=sys.stderr)
+        for w in warnings:
+            print(f"   - {w}", file=sys.stderr)
 
 
 if __name__ == "__main__":

@@ -1,0 +1,53 @@
+rules_version = '2';
+
+// CardPulse push-notification subscriber storage.
+//
+// The site is 100% static/anonymous -- there's no login, so "possession
+// of the exact FCM token" (a long, unguessable, high-entropy string only
+// the origin browser ever holds) IS the authorization proof for that
+// subscriber's own document. That's why the document ID must equal the
+// token, and why delete is allowed unconditionally: only a request that
+// already names that specific token could ever match it.
+//
+// "Change my followed games" and "turn off alerts" are both done from
+// the client as delete-then-recreate (see subscribe.js) rather than an
+// update, so update stays fully denied -- one fewer rule to get wrong.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /push_subscribers/{tokenId} {
+      allow create: if request.resource.data.keys().hasOnly(
+                         ['token', 'followedGames', 'userAgent', 'createdAt']
+                       )
+                     // doc ID must match the token inside it -- stops one
+                     // visitor from writing over another's document.
+                     && request.resource.data.token == tokenId
+                     && request.resource.data.token is string
+                     // real web FCM tokens run ~140-160 chars; a wide
+                     // floor/ceiling absorbs future format changes while
+                     // still rejecting short junk strings from a scripted
+                     // flood attempt.
+                     && request.resource.data.token.size() > 50
+                     && request.resource.data.token.size() < 4096
+                     && request.resource.data.followedGames is list
+                     && request.resource.data.followedGames.size() <= 6
+                     && request.resource.data.followedGames.hasOnly([
+                          'game-mtg', 'game-pokemon', 'game-onepiece',
+                          'game-lorcana', 'game-riftbound', 'game-community'
+                        ])
+                     && request.resource.data.userAgent is string
+                     && request.resource.data.userAgent.size() < 300
+                     // proves the client actually used serverTimestamp()
+                     // rather than sending an arbitrary client-controlled
+                     // date.
+                     && request.resource.data.createdAt == request.time;
+
+      allow delete: if true;
+      allow read, update: if false;
+    }
+
+    // Deny everything else by default.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

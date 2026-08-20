@@ -15,6 +15,7 @@ Usage: python3 scripts/build_site.py
 import json
 import re
 import shutil
+import sys
 from datetime import datetime
 from pathlib import Path
 
@@ -26,13 +27,24 @@ CONTENT_DIR = ROOT / "content" / "articles"
 TEMPLATE_PATH = ROOT / "templates" / "base.html"
 SNAP_DIR = ROOT / "data" / "snapshots"
 SITE_DIR = ROOT / "docs"  # GitHub Pages can serve straight from a /docs folder, no extra config
-SITE_URL = "https://example.com"  # TODO: replace once you have a real domain
+SITE_URL = "https://proxylair.github.io/cardpulse"  # update if/when a custom domain is bought
 
 # Cards below this price move around on pennies alone -- a $0.04 -> $0.08
 # card is "+100%" but meaningless. Keep the homepage movers list honest.
 MOVERS_MIN_PRICE = 1.00
 MOVERS_MIN_PCT = 8.0
 MOVERS_LIMIT = 3
+QUICK_HITS_LIMIT = 12
+# A move bigger than this is almost never a real market event -- it's
+# nearly always a data/mapping error (wrong product matched between
+# snapshots, a listing glitch on TCGplayer's end, etc). Filter it out of
+# "movers" entirely rather than publishing "CARD CRASHES 90%" and having
+# to walk it back next week.
+MOVERS_MAX_PCT = 500.0
+# If the latest snapshot has fewer than this fraction of the cards the
+# prior one had, treat the whole pull as suspect (partial/broken fetch)
+# rather than a real, sitewide price event.
+MIN_SNAPSHOT_COVERAGE_RATIO = 0.5
 
 # Per-game color-coding + a little emoji personality for tags/cards.
 GAME_META = {
@@ -63,6 +75,20 @@ def style_buy_cta(html_body: str) -> str:
     # The buttons already have their own spacing -- drop the plain-text
     # middle-dot separator that made sense between plain links, not buttons.
     html_body = html_body.replace("</a> · <a", "</a><a")
+    # Affiliate disclosure directly under the buy links, not just buried on
+    # the About page -- best practice (and most affiliate-network terms)
+    # want the disclosure right next to the commercial links themselves.
+    # style_buy_cta only ever runs on article bodies, which are always
+    # rendered at docs/articles/*.html (root "../"), so the relative link
+    # below is safe to hardcode.
+    html_body = re.sub(
+        r'(<p class="buy-cta">.*?</p>)',
+        r'\1<em class="disclosure-note">CardPulse may earn a commission on '
+        r'purchases through the links above. It doesn’t change the price '
+        r'you pay -- see our <a href="../about.html">disclosure</a>.</em>',
+        html_body,
+        flags=re.DOTALL,
+    )
     return html_body
 
 
@@ -80,11 +106,28 @@ def compute_market_snapshot():
         "cards_tracked": total_cards,
         "games_tracked": len(latest.get("games", {})),
         "last_updated": latest.get("fetched_at", "")[:10],
+        "data_health_warning": None,
     }
 
     movers = []
     if len(files) >= 2:
         old = json.loads(files[-2].read_text(encoding="utf-8"))
+
+        # A big drop in total tracked cards vs. the prior snapshot usually
+        # means a partial/broken fetch (a game's groups/products call
+        # failed, tcgcsv had an outage, etc), not a real sitewide event.
+        # Flag it rather than silently publishing whatever movers that
+        # partial data happens to produce.
+        old_total = sum(len(g.get("cards", [])) for g in old.get("games", {}).values())
+        if old_total > 0 and total_cards < old_total * MIN_SNAPSHOT_COVERAGE_RATIO:
+            stats["data_health_warning"] = (
+                f"Latest snapshot has {total_cards} priced cards vs {old_total} in the "
+                f"prior one -- a >{(1 - MIN_SNAPSHOT_COVERAGE_RATIO) * 100:.0f}% drop, which "
+                "usually means a partial/broken data pull, not a real market event. "
+                "Treat this week's movers with suspicion before publishing or alerting."
+            )
+            print(f"!! {stats['data_health_warning']}", file=sys.stderr)
+
         for game_key, game in latest.get("games", {}).items():
             old_cards = {
                 (c["name"], c["set"]): c["market_price"]
@@ -100,20 +143,34 @@ def compute_market_snapshot():
                 if not old_price:
                     continue
                 pct = (new_price - old_price) / old_price * 100
-                if abs(pct) >= MOVERS_MIN_PCT:
-                    movers.append({
-                        "name": c["name"],
-                        "game_label": label,
-                        "old_price": old_price,
-                        "new_price": new_price,
-                        "pct": pct,
-                    })
+                if abs(pct) < MOVERS_MIN_PCT:
+                    continue
+                if abs(pct) > MOVERS_MAX_PCT:
+                    print(
+                        f"  !! suspicious move filtered out: {c['name']} ({label}) "
+                        f"${old_price:.2f} -> ${new_price:.2f} ({pct:+.1f}%) -- likely a "
+                        "data error, not a real move",
+                        file=sys.stderr,
+                    )
+                    continue
+                movers.append({
+                    "name": c["name"],
+                    "game_label": label,
+                    "old_price": old_price,
+                    "new_price": new_price,
+                    "pct": pct,
+                    "image": c.get("image"),
+                    "url": c.get("url"),
+                })
         movers.sort(key=lambda m: m["pct"], reverse=True)
 
     gainers = [m for m in movers if m["pct"] > 0][:MOVERS_LIMIT]
     losers = sorted([m for m in movers if m["pct"] < 0], key=lambda m: m["pct"])[:MOVERS_LIMIT]
+    # Quick Hits draws from a wider slice (still real, still filtered -- just
+    # not capped at 3+3) so the scroll strip has enough to be worth scrolling.
+    quick_hits = sorted(movers, key=lambda m: abs(m["pct"]), reverse=True)[:QUICK_HITS_LIMIT]
     stats["prior_snapshot"] = json.loads(files[-2].read_text(encoding="utf-8")).get("fetched_at", "")[:10] if len(files) >= 2 else None
-    return {"stats": stats, "gainers": gainers, "losers": losers}
+    return {"stats": stats, "gainers": gainers, "losers": losers, "quick_hits": quick_hits}
 
 
 def render_mover_card(m):
@@ -121,12 +178,47 @@ def render_mover_card(m):
     gslug = game_slug(m["game_label"])
     arrow = "▲" if direction == "up" else "▼"
     return (
-        f'<div class="mover-card {direction}">'
+        f'<div class="mover-card {direction} {gslug}">'
         f'<span class="tag {gslug}">{game_icon(m["game_label"])} {m["game_label"]}</span>'
         f'<strong>{m["name"]}</strong>'
         f'<span class="mover-price">${m["old_price"]:.2f} → ${m["new_price"]:.2f}</span>'
         f'<span class="mover-pct {direction}">{arrow} {m["pct"]:+.1f}%</span>'
         f'</div>'
+    )
+
+
+def render_quick_hit(m):
+    direction = "up" if m["pct"] > 0 else "down"
+    gslug = game_slug(m["game_label"])
+    arrow = "▲" if direction == "up" else "▼"
+    img = (
+        f'<img src="{m["image"]}" alt="{m["name"]}" loading="lazy">'
+        if m.get("image") else
+        f'<div class="quick-hit-noimg">{game_icon(m["game_label"])}</div>'
+    )
+    link_open = f'<a href="{m["url"]}" target="_blank" rel="noopener nofollow">' if m.get("url") else "<div>"
+    link_close = "</a>" if m.get("url") else "</div>"
+    return (
+        f'<div class="quick-hit {gslug}">'
+        f'{link_open}{img}'
+        f'<div class="quick-hit-body">'
+        f'<span class="quick-hit-pct {direction}">{arrow} {m["pct"]:+.0f}%</span>'
+        f'<strong>{m["name"]}</strong>'
+        f'<span class="quick-hit-price">${m["new_price"]:.2f}</span>'
+        f'</div>{link_close}'
+        f'</div>'
+    )
+
+
+def render_quick_hits(snapshot):
+    if snapshot is None or not snapshot.get("quick_hits"):
+        return ""
+    cards = "".join(render_quick_hit(m) for m in snapshot["quick_hits"])
+    return (
+        "<section class='quick-hits-section'>"
+        "<h2 class='section-heading'>⚡ Quick Hits</h2>"
+        f"<div class='quick-hits-strip'>{cards}</div>"
+        "</section>"
     )
 
 
@@ -208,6 +300,17 @@ def build():
 
     # copy static assets
     shutil.copyfile(ROOT / "templates" / "style.css", SITE_DIR / "style.css")
+    shutil.copyfile(ROOT / "templates" / "personalize.js", SITE_DIR / "personalize.js")
+    shutil.copyfile(ROOT / "templates" / "subscribe.js", SITE_DIR / "subscribe.js")
+    # firebase-messaging-sw.js MUST land at the site root (not under
+    # articles/) -- a service worker's scope is the directory it's served
+    # from and everything below it, so root is what lets it cover the
+    # whole site, matching the root-domain deployment assumption already
+    # baked into style.css/personalize.js's absolute-from-root links.
+    shutil.copyfile(
+        ROOT / "templates" / "firebase-messaging-sw.js",
+        SITE_DIR / "firebase-messaging-sw.js",
+    )
 
     template = Template(TEMPLATE_PATH.read_text(encoding="utf-8"))
     articles = []
@@ -272,7 +375,9 @@ def build():
     game_pills = "".join(
         f"<span>{meta['icon']} {name}</span>" for name, meta in GAME_META.items()
     )
-    market_html = render_market_section(compute_market_snapshot())
+    snapshot = compute_market_snapshot()
+    market_html = render_market_section(snapshot)
+    quick_hits_html = render_quick_hits(snapshot)
     index_html = template.render(
         title="CardPulse -- Trading Card Market Data & Analysis",
         description="Plain-English trading card market breakdowns, backed by real price data.",
@@ -284,6 +389,7 @@ def build():
             f"<div class='game-strip'>{game_pills}</div>"
             "</div>"
             f"{market_html}"
+            f"{quick_hits_html}"
             "<h2 class='section-heading'>Latest Analysis</h2>"
             f"<ul class='article-grid'>{list_items}</ul>"
         ),
@@ -310,6 +416,16 @@ def build():
             "a custom TCG proxy card design and production studio. We're upfront about that "
             "connection anywhere the two come up -- if an article mentions ProxyLair, treat it "
             "the same way you'd treat any other disclosed relationship on this site.</p>"
+            "<h2>Push Notifications &amp; Data</h2>"
+            "<p>If you click \"Get price alerts,\" your browser stores a notification "
+            "token (a random ID tied to your browser install, not to you personally), "
+            "along with which games you chose to follow and your browser's user-agent "
+            "string. We use it only to send you the weekly price-mover digest you "
+            "signed up for -- we don't sell it, share it, or use it for anything else. "
+            "Click \"Manage\" next to the alerts indicator any time to change which "
+            "games you follow or turn alerts off entirely, which deletes that data. "
+            "We don't use tracking cookies or run analytics on this site beyond basic, "
+            "aggregate hosting logs.</p>"
         ),
         root="",
         year=datetime.now().year,

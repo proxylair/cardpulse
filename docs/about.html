@@ -21,13 +21,42 @@
     <a href="methodology.html">Methodology</a>
   </nav>
 </header>
+<div id="cp-follow-bar"></div>
+<div id="cp-notify-bar"></div>
 <main>
-<h1>About CardPulse</h1><p>CardPulse tracks real trading-card market prices and publishes plain-English breakdowns of what's moving and why. Data comes from public marketplace APIs.</p><h2>Affiliate Disclosure</h2><p>Some links on this site are affiliate links (TCGplayer, eBay Partner Network). If you click through and make a purchase, this site may earn a small commission at no extra cost to you. We only link to products we'd genuinely point you to.</p><h2>Ownership Disclosure</h2><p>CardPulse is run by the same person behind <a href="https://proxylair.com" target="_blank" rel="noopener">ProxyLair</a>, a custom TCG proxy card design and production studio. We're upfront about that connection anywhere the two come up -- if an article mentions ProxyLair, treat it the same way you'd treat any other disclosed relationship on this site.</p>
+<h1>About CardPulse</h1><p>CardPulse tracks real trading-card market prices and publishes plain-English breakdowns of what's moving and why. Data comes from public marketplace APIs.</p><h2>Affiliate Disclosure</h2><p>Some links on this site are affiliate links (TCGplayer, eBay Partner Network). If you click through and make a purchase, this site may earn a small commission at no extra cost to you. We only link to products we'd genuinely point you to.</p><h2>Ownership Disclosure</h2><p>CardPulse is run by the same person behind <a href="https://proxylair.com" target="_blank" rel="noopener">ProxyLair</a>, a custom TCG proxy card design and production studio. We're upfront about that connection anywhere the two come up -- if an article mentions ProxyLair, treat it the same way you'd treat any other disclosed relationship on this site.</p><h2>Push Notifications &amp; Data</h2><p>If you click "Get price alerts," your browser stores a notification token (a random ID tied to your browser install, not to you personally), along with which games you chose to follow and your browser's user-agent string. We use it only to send you the weekly price-mover digest you signed up for -- we don't sell it, share it, or use it for anything else. Click "Manage" next to the alerts indicator any time to change which games you follow or turn alerts off entirely, which deletes that data. We don't use tracking cookies or run analytics on this site beyond basic, aggregate hosting logs.</p>
 </main>
 <footer class="site-footer">
   <p>CardPulse tracks real, current trading-card market data and publishes plain-English breakdowns. Some links on this site are affiliate links -- see our <a href="about.html">disclosure</a>. Price data via <a href="https://tcgcsv.com" target="_blank" rel="noopener">TCGCSV</a> (a free mirror of TCGplayer's product/price feeds).</p>
   <p class="footer-crosslink">Also from us: <a href="https://proxylair.com" target="_blank" rel="noopener">ProxyLair</a> -- custom TCG proxy cards for casual play and collecting.</p>
   <p>&copy; 2026 CardPulse. Not affiliated with Wizards of the Coast, TCGplayer, or eBay.</p>
 </footer>
+<script src="personalize.js" defer></script>
+
+<!--
+  Push notification opt-in (Firebase Cloud Messaging + Firestore).
+  TODO: fill in with the values from Firebase console:
+    - firebaseConfig: Project settings -> General -> "Your apps" -> web app -> Config
+    - FCM_VAPID_KEY:  Project settings -> Cloud Messaging -> Web configuration ->
+                       Web Push certificates -> key pair (starts with "B")
+  Until both are filled in, subscribe.js no-ops (renders nothing) so the
+  site works fine without them.
+-->
+<script>
+  window.firebaseConfig = {
+    apiKey: "AIzaSyB0fKfSx_Guu7zlOGhE5jihtyV_zYUN-hU",
+    authDomain: "cardpulse-84dd6.firebaseapp.com",
+    projectId: "cardpulse-84dd6",
+    storageBucket: "cardpulse-84dd6.firebasestorage.app",
+    messagingSenderId: "494495279763",
+    appId: "1:494495279763:web:15566153191def7a0ebb66",
+    measurementId: "G-74HGB8C38Z"
+  };
+  window.FCM_VAPID_KEY = "BBDTPow0aYaI0AckkV9m98cduvyXGsd7Y8_M3sBLA29hvth5U5LO9csOW5bk4DLHI15R2sohtGWqEWsC0Yd6QJg";
+</script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js" defer></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-messaging-compat.js" defer></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js" defer></script>
+<script src="subscribe.js" defer></script>
 </body>
 </html>

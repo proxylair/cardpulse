@@ -25,11 +25,14 @@ up for affiliate accounts, buying a domain, publishing).
   longer you run this. Usage: `python3 scripts/find_movers.py 8 pokemon`
   (min % change, optional game filter -- omit the game to see all five).
 - `scripts/build_site.py` -- turns Markdown files in `content/articles/`
-  into the static site in `site/`. Five real articles are already written
+  into the static site in `docs/`. Five real articles are already written
   (one per game), using live data pulled today.
+- `scripts/send_alerts.py` -- sends a push-notification digest to
+  everyone who clicked "Get price alerts" on the site, using the exact
+  same movers data the homepage shows. See "Push notifications" below.
 - `content/articles/` -- article source files (Markdown + a small front
   matter block for title/date/description/game).
-- `site/` -- the finished, deployable static site. This is what you upload.
+- `docs/` -- the finished, deployable static site. This is what you upload.
 
 ### Why TCGCSV instead of a game-specific API
 
@@ -48,24 +51,24 @@ content; not precise enough for pricing your own individual listings.
 ```bash
 pip install -r requirements.txt
 python3 scripts/fetch_snapshot.py     # pulls fresh price data
-python3 scripts/build_site.py         # rebuilds site/ from content/articles/
+python3 scripts/build_site.py         # rebuilds docs/ from content/articles/
 ```
 
-Open `site/index.html` in a browser to preview locally before publishing.
+Open `docs/index.html` in a browser to preview locally before publishing.
 
 ## Deploy for free (pick one, both are genuinely $0)
 
 **GitHub Pages** (simplest if you already have a GitHub account):
-1. Create a new repo, push this whole folder to it.
-2. Repo Settings -> Pages -> deploy from the `site/` folder (or a `gh-pages`
-   branch containing its contents).
-3. You get a free `yourname.github.io/cardpulse` URL immediately. A real
-   domain (~$10-12/year) is optional and can wait until the site has
+1. Create a new repo, push this whole folder to it (exact commands below).
+2. Repo Settings -> Pages -> Source: "Deploy from a branch" -> Branch:
+   `main`, Folder: `/docs`. Save.
+3. You get a free `yourname.github.io/cardpulse` URL within a minute or two.
+   A real domain (~$10-12/year) is optional and can wait until the site has
    traction -- don't spend money on it yet.
 
 **Cloudflare Pages** (also free, slightly more polished dashboard):
 1. Sign up at pages.cloudflare.com, connect the GitHub repo, set the build
-   output directory to `site/`.
+   output directory to `docs/`.
 2. Same free subdomain-first, custom-domain-later approach.
 
 ## The weekly workflow (this is the part that has to stay human for now)
@@ -82,10 +85,37 @@ Open `site/index.html` in a browser to preview locally before publishing.
    thin, templated, unedited AI content. One genuinely good article a week
    beats seven auto-generated ones.
 5. `python3 scripts/build_site.py`, then push/redeploy.
+6. Once the redeploy is live, `python3 scripts/send_alerts.py` to notify
+   subscribers -- do this last so the notification links to content
+   that's actually up.
 
 Realistically this is 30-60 minutes/week once the pipeline is warmed up:
-~5 min to run the two scripts, ~20-40 min to read/edit/tighten a draft,
+~5 min to run the scripts, ~20-40 min to read/edit/tighten a draft,
 ~5 min to redeploy.
+
+## Push notifications
+
+Visitors can click "🔔 Get price alerts" on the site to subscribe (Firebase
+Cloud Messaging + Firestore, wired up in `templates/subscribe.js` /
+`templates/firebase-messaging-sw.js`). `scripts/send_alerts.py` is what
+actually sends the digest -- it's a separate step from the site itself
+since a static site can't run server-side code.
+
+One-time setup:
+1. Firebase console -> gear icon -> Project settings -> Service accounts
+   tab -> "Generate new private key". Save the downloaded JSON as
+   `scripts/serviceAccountKey.json` (already gitignored -- this file
+   grants full admin access to the Firebase project, so it must never be
+   committed or shared).
+2. `pip install -r requirements.txt` (pulls in `firebase-admin`).
+
+Then, as the last step of the weekly workflow above:
+```bash
+python3 scripts/send_alerts.py --dry-run   # preview what would be sent, no credentials required
+python3 scripts/send_alerts.py             # sends for real
+```
+It tracks the last snapshot it alerted on (`data/last_alerted_snapshot.txt`)
+so re-running it by accident won't double-notify anyone.
 
 ## Monetization -- what to sign up for, and what's NOT done yet
 
