@@ -16,6 +16,15 @@
 <link rel="apple-touch-icon" href="../apple-touch-icon.png">
 <link rel="manifest" href="../manifest.webmanifest">
 <meta name="theme-color" content="#2a78d6">
+<!--
+  iOS Safari ignores the web app manifest entirely -- these meta tags are
+  the only way it knows this is meant to launch standalone (no browser
+  chrome) when added via Share > Add to Home Screen, and what to call it /
+  how to color its status bar while doing so.
+-->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="CardPulse">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 </head>
 <body>
 <div class="confetti-bar" aria-hidden="true"></div>

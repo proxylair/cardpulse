@@ -554,9 +554,11 @@ def build():
     for icon_file in (
         "favicon.ico", "favicon-16.png", "favicon-32.png",
         "apple-touch-icon.png", "icon-64.png", "icon-192.png", "icon-512.png",
+        "icon-maskable-512.png",
     ):
         shutil.copyfile(ROOT / "templates" / icon_file, SITE_DIR / icon_file)
     (SITE_DIR / "manifest.webmanifest").write_text(json.dumps({
+        "id": ".",
         "name": "CardPulse",
         "short_name": "CardPulse",
         "description": "Real trading-card market data, tracked regularly, explained simply.",
@@ -565,9 +567,14 @@ def build():
         "display": "standalone",
         "background_color": "#fdfbf6",
         "theme_color": "#2a78d6",
+        # "any" icons are used as-is (our own rounded-square shape); the
+        # "maskable" one is a separate, more-padded render so Android's
+        # adaptive-icon crop (circle/squircle/whatever the launcher uses)
+        # doesn't clip the pulse line -- see icon-maskable-source.svg.
         "icons": [
-            {"src": "icon-192.png", "sizes": "192x192", "type": "image/png"},
-            {"src": "icon-512.png", "sizes": "512x512", "type": "image/png"},
+            {"src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
+            {"src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"},
+            {"src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"},
         ],
     }, indent=2), encoding="utf-8")
 

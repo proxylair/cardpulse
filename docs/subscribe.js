@@ -123,6 +123,31 @@
     return navigator.serviceWorker.register(root + "firebase-messaging-sw.js?firebaseConfig=" + configParam);
   }
 
+  function ensureServiceWorkerRegistered() {
+    // Registers the FCM service worker proactively on every page load --
+    // NOT gated behind Notification.requestPermission(), unlike the
+    // subscribe() flow below. Two independent reasons to do this:
+    //   1. An active service worker is one of the signals browsers use to
+    //      decide a site is "installable" as an app (Add to Home Screen /
+    //      the install icon in the address bar). Without this, that only
+    //      became true for a visitor after they'd already subscribed to
+    //      alerts, which is backwards -- most people will want to install
+    //      the app before ever touching push notifications.
+    //   2. It means the worker is already warm if someone does click
+    //      "Get price alerts" later, instead of registering for the first
+    //      time in the middle of that flow.
+    // Registering a service worker does NOT request notification
+    // permission or send anything anywhere -- it's inert until a page
+    // actually calls messaging.getToken(), which only happens from the
+    // subscribe button's click handler.
+    if (!("serviceWorker" in navigator) || !window.firebaseConfig || !window.firebaseConfig.apiKey) {
+      return;
+    }
+    registerServiceWorkerWithConfig().catch(function (err) {
+      console.error("[CardPulse] service worker registration failed:", err);
+    });
+  }
+
   function attachForegroundListener(app) {
     // Foreground messages -- the service worker's background handler only
     // fires when no CardPulse tab has focus. Re-attached on every page
@@ -351,5 +376,8 @@
     mount.appendChild(button);
   }
 
-  document.addEventListener("DOMContentLoaded", render);
+  document.addEventListener("DOMContentLoaded", function () {
+    render();
+    ensureServiceWorkerRegistered();
+  });
 })();
