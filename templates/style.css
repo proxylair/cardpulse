@@ -73,6 +73,9 @@ h1, h2, .brand, .article-card a, .site-header .brand {
 }
 
 .brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   font-weight: 800;
   font-size: 1.5rem;
   text-decoration: none;
@@ -81,6 +84,10 @@ h1, h2, .brand, .article-card a, .site-header .brand {
   background-clip: text;
   color: transparent;
   letter-spacing: 0.2px;
+}
+.brand-mark {
+  border-radius: 7px;
+  display: block;
 }
 
 nav a {

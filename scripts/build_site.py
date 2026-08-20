@@ -305,12 +305,37 @@ def build():
     # firebase-messaging-sw.js MUST land at the site root (not under
     # articles/) -- a service worker's scope is the directory it's served
     # from and everything below it, so root is what lets it cover the
-    # whole site, matching the root-domain deployment assumption already
-    # baked into style.css/personalize.js's absolute-from-root links.
+    # whole site. subscribe.js registers it via window.CARDPULSE_ROOT
+    # (the same "" / "../" prefix every other on-page link uses), which is
+    # what actually makes this correct on a GitHub Pages project subpath
+    # like proxylair.github.io/cardpulse/ -- a literal "/firebase-messaging-sw.js"
+    # would 404 there (this bit us once already; see git history).
     shutil.copyfile(
         ROOT / "templates" / "firebase-messaging-sw.js",
         SITE_DIR / "firebase-messaging-sw.js",
     )
+    # Icons -- favicon, apple-touch-icon, and the sizes used by both the
+    # web app manifest (installed-icon) and push notifications
+    # (firebase-messaging-sw.js's icon/badge).
+    for icon_file in (
+        "favicon.ico", "favicon-16.png", "favicon-32.png",
+        "apple-touch-icon.png", "icon-64.png", "icon-192.png", "icon-512.png",
+    ):
+        shutil.copyfile(ROOT / "templates" / icon_file, SITE_DIR / icon_file)
+    (SITE_DIR / "manifest.webmanifest").write_text(json.dumps({
+        "name": "CardPulse",
+        "short_name": "CardPulse",
+        "description": "Real trading-card market data, tracked regularly, explained simply.",
+        "start_url": ".",
+        "scope": ".",
+        "display": "standalone",
+        "background_color": "#fdfbf6",
+        "theme_color": "#2a78d6",
+        "icons": [
+            {"src": "icon-192.png", "sizes": "192x192", "type": "image/png"},
+            {"src": "icon-512.png", "sizes": "512x512", "type": "image/png"},
+        ],
+    }, indent=2), encoding="utf-8")
 
     template = Template(TEMPLATE_PATH.read_text(encoding="utf-8"))
     articles = []

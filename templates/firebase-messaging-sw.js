@@ -37,8 +37,12 @@ if (configParam) {
     var body = (payload.notification && payload.notification.body) || "A card you follow just moved.";
     var options = {
       body: body,
-      icon: (payload.notification && payload.notification.icon) || "/icon-192.png",
-      badge: "/icon-192.png",
+      // Relative (no leading slash) so it resolves against this service
+      // worker's own URL -- which, now that it's registered at the site's
+      // actual root (see subscribe.js), correctly means
+      // .../cardpulse/icon-192.png rather than the domain root.
+      icon: (payload.notification && payload.notification.icon) || "icon-192.png",
+      badge: "icon-192.png",
       // send_alerts.py always sets payload.data.url to the site's real
       // full URL, so this fallback only matters for a message that
       // somehow arrives without one -- self.registration.scope (not "/")

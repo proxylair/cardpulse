@@ -40,7 +40,21 @@ GAMES = {
 # How many of each game's most-recently-released sets to track. Recent sets
 # are where price movement and budget-deck content actually happens; going
 # back further mostly adds noise (and a much bigger/slower fetch).
-GROUPS_PER_GAME = 5
+#
+# This is a floor and a target, not a fixed count -- some games (observed on
+# One Piece) ship many small single-product "sets" in TCGplayer's catalog
+# (individual starter decks, ~11-13 cards each) interleaved with real
+# booster sets. A fixed "5 most recent groups" for a game like that grabs
+# six starter decks and zero real sets, undercounting that game by an
+# order of magnitude versus MTG/Pokemon/Lorcana. Instead: always include at
+# least GROUPS_MIN groups, but keep pulling further back until either
+# CARDS_TARGET priced products have been collected or GROUPS_MAX groups
+# have been examined -- so a game with big sets stops early (same behavior
+# as before), and a game with lots of small releases keeps going until it
+# reaches an actual full-size set.
+GROUPS_MIN = 5
+GROUPS_MAX = 20
+CARDS_TARGET = 300
 
 # Below this many priced cards for a single game, something's probably
 # wrong upstream (a failed groups/products call, an empty category, a
@@ -75,9 +89,10 @@ def recent_groups(category_id: int, limit: int):
     return released[:limit]
 
 
-def fetch_game(category_id: int, limit: int):
+def fetch_game(category_id: int, groups_min=GROUPS_MIN, groups_max=GROUPS_MAX, cards_target=CARDS_TARGET):
     cards = []
-    for group in recent_groups(category_id, limit):
+    candidates = recent_groups(category_id, groups_max)
+    for i, group in enumerate(candidates):
         gid = group["groupId"]
         try:
             products = get_json(f"{BASE}/{category_id}/{gid}/products")
@@ -108,6 +123,8 @@ def fetch_game(category_id: int, limit: int):
                 "image": prod.get("imageUrl"),
             })
         time.sleep(0.15)  # be polite to a free service
+        if i + 1 >= groups_min and len(cards) >= cards_target:
+            break
     return cards
 
 
@@ -119,7 +136,7 @@ def main():
     for key, meta in GAMES.items():
         print(f"Fetching {meta['label']} ...", file=sys.stderr)
         try:
-            cards = fetch_game(meta["category_id"], GROUPS_PER_GAME)
+            cards = fetch_game(meta["category_id"])
         except requests.RequestException as e:
             # A whole-game failure (e.g. the /groups call itself, which
             # isn't wrapped inside fetch_game) shouldn't lose the other
