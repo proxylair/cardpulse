@@ -29,6 +29,7 @@
 </header>
 <div id="cp-follow-bar"></div>
 <div id="cp-notify-bar"></div>
+<div id="cp-visit-banner"></div>
 <main>
 {{ content|safe }}
 </main>
@@ -38,6 +39,7 @@
   <p>&copy; {{ year }} CardPulse. Not affiliated with Wizards of the Coast, TCGplayer, or eBay.</p>
 </footer>
 <script src="{{ root }}personalize.js" defer></script>
+<script src="{{ root }}engagement.js" defer></script>
 
 <!--
   Push notification opt-in (Firebase Cloud Messaging + Firestore).

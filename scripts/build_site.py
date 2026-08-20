@@ -65,6 +65,137 @@ def game_icon(game: str) -> str:
     return GAME_META.get(game, {}).get("icon", "\U0001F0CF")
 
 
+def card_key(name: str, set_name: str) -> str:
+    """Stable, URL/localStorage-safe identity for a card across snapshots.
+    tcgcsv product IDs aren't in our snapshot schema, so (name, set) is the
+    join key everywhere -- this just slugifies that pair once, consistently,
+    for use as a data-attribute and as the key in card-index.json."""
+    raw = f"{name}|{set_name}".lower()
+    return re.sub(r"[^a-z0-9]+", "-", raw).strip("-")[:120]
+
+
+# ---------- Momentum engine ----------
+# Uses every available snapshot (not just the latest two) to say more than
+# "this card moved X% this week" -- e.g. "third straight week up" or "this
+# is a sudden move after being flat for weeks." Needs real history to say
+# anything meaningful, so most labels simply won't appear until there are
+# a handful of weekly snapshots on file -- that's intentional (see
+# MIN_HISTORY_FOR_LABEL below) rather than guessing from thin data.
+MIN_HISTORY_FOR_STREAK = 2   # need 2 week-over-week changes (3 snapshots) to call anything a streak
+MIN_HISTORY_FOR_LABEL = 3    # need 3 changes (4 snapshots) for the richer labels below
+BREAKOUT_MULTIPLE = 3.0      # latest move must be >= 3x the prior average to call it a "breakout"
+VOLATILE_MIN_SIGN_CHANGES = 2
+
+
+def _pct_series(prices):
+    """prices: list of (snapshot_date, price) oldest->newest, one card.
+    Returns week-over-week % changes, oldest->newest, skipping any gap
+    where the card wasn't priced in a given snapshot."""
+    series = []
+    prev = None
+    for _date, price in prices:
+        if price is not None and prev is not None and prev > 0:
+            series.append((price - prev) / prev * 100)
+        prev = price if price is not None else prev
+    return series
+
+
+def _streak_len(pct_series):
+    """How many trailing entries share the same sign as the most recent one."""
+    if not pct_series:
+        return 0
+    sign = pct_series[-1] > 0
+    n = 0
+    for pct in reversed(pct_series):
+        if (pct > 0) != sign:
+            break
+        n += 1
+    return n
+
+
+def classify_momentum(pct_series):
+    """pct_series: week-over-week % changes for one card, oldest->newest,
+    ending with the most recent (current) week. Returns None if there's
+    not enough history to say anything responsible, else a dict with
+    emoji/label/detail for a small badge."""
+    if len(pct_series) < MIN_HISTORY_FOR_STREAK:
+        return None
+
+    latest = pct_series[-1]
+    streak = _streak_len(pct_series)
+    prior = pct_series[:-1]
+
+    if len(pct_series) >= MIN_HISTORY_FOR_LABEL:
+        # Breakout: was relatively quiet, then suddenly wasn't.
+        prior_avg_abs = sum(abs(p) for p in prior) / len(prior) if prior else 0
+        if prior_avg_abs > 0 and prior_avg_abs < MOVERS_MIN_PCT and abs(latest) >= prior_avg_abs * BREAKOUT_MULTIPLE:
+            return {"emoji": "\U0001F680", "label": "Breakout", "detail": "sudden move after being relatively flat"}
+
+        # Reversing: the streak just before this week was itself a real
+        # streak (>=2) in the OPPOSITE direction of this week.
+        pre_streak = _streak_len(prior)
+        if pre_streak >= 2 and (prior[-1] > 0) != (latest > 0):
+            return {"emoji": "↩️", "label": "Reversing", "detail": f"broke a {pre_streak}-week trend"}
+
+        # Cooling off: still positive, but decelerating hard after a real up-streak.
+        if latest > 0 and pre_streak >= 2 and prior[-1] > 0 and abs(latest) < abs(prior[-1]) * 0.5:
+            return {"emoji": "❄️", "label": "Cooling Off", "detail": "slowing after a run-up"}
+
+        # Steady climber: consistently positive, no single dominating spike.
+        if all(p > 0 for p in pct_series):
+            sorted_p = sorted(pct_series)
+            median = sorted_p[len(sorted_p) // 2]
+            if median > 0 and max(pct_series) < median * 2.5:
+                return {"emoji": "\U0001F4C8", "label": "Steady Climber", "detail": f"{len(pct_series)} straight weeks up, no single spike"}
+
+        # Volatile: direction keeps flipping.
+        sign_changes = sum(1 for a, b in zip(pct_series, pct_series[1:]) if (a > 0) != (b > 0))
+        if sign_changes >= VOLATILE_MIN_SIGN_CHANGES:
+            return {"emoji": "⚡", "label": "Volatile", "detail": "swinging both directions recently"}
+
+    # Fall back to a plain streak badge once we're confident enough (2+ same-direction weeks).
+    if streak >= MIN_HISTORY_FOR_STREAK:
+        if latest > 0:
+            return {"emoji": "\U0001F525", "label": "Heating Up", "detail": f"{streak} straight weeks up"}
+        return {"emoji": "\U0001F4C9", "label": "Sliding", "detail": f"{streak} straight weeks down"}
+
+    return None
+
+
+def load_all_snapshots(max_snapshots=8):
+    """Most recent `max_snapshots` snapshot files, oldest first, as
+    (date_stamp, parsed_json) pairs. Capped so momentum calc stays cheap
+    even once months of history pile up -- ~2 months of weekly pulls is
+    plenty of context for any of the labels above."""
+    files = sorted(SNAP_DIR.glob("*.json"))[-max_snapshots:]
+    return [(f.stem, json.loads(f.read_text(encoding="utf-8"))) for f in files]
+
+
+def build_momentum_map(snapshots):
+    """snapshots: output of load_all_snapshots(). Returns {card_key:
+    momentum-dict-or-None} for every card present in the latest snapshot."""
+    if len(snapshots) < 2:
+        return {}
+    latest_date, latest = snapshots[-1]
+
+    # date -> game_key -> card_key -> price, built once up front instead of
+    # re-scanning every snapshot per card.
+    price_history = {}  # card_key -> [(date, price), ...] oldest->newest
+    for date, snap in snapshots:
+        for game in snap.get("games", {}).values():
+            for c in game.get("cards", []):
+                key = card_key(c["name"], c["set"])
+                price_history.setdefault(key, []).append((date, c.get("market_price")))
+
+    momentum = {}
+    for game in latest.get("games", {}).values():
+        for c in game.get("cards", []):
+            key = card_key(c["name"], c["set"])
+            series = _pct_series(price_history.get(key, []))
+            momentum[key] = classify_momentum(series)
+    return momentum
+
+
 def style_buy_cta(html_body: str) -> str:
     """Give the '**Where to buy:**' paragraph a class so CSS can turn its
     links into big, clickable CTA buttons instead of plain text links."""
@@ -108,6 +239,10 @@ def compute_market_snapshot():
         "last_updated": latest.get("fetched_at", "")[:10],
         "data_health_warning": None,
     }
+    # Momentum needs more than the latest 2 snapshots (see build_momentum_map)
+    # -- {} until there's enough weekly history on file, at which point
+    # labels start appearing automatically with no code change needed.
+    momentum_map = build_momentum_map(load_all_snapshots())
 
     movers = []
     if len(files) >= 2:
@@ -153,16 +288,24 @@ def compute_market_snapshot():
                         file=sys.stderr,
                     )
                     continue
+                key = card_key(c["name"], c["set"])
                 movers.append({
                     "name": c["name"],
+                    "key": key,
                     "game_label": label,
                     "old_price": old_price,
                     "new_price": new_price,
                     "pct": pct,
                     "image": c.get("image"),
                     "url": c.get("url"),
+                    "momentum": momentum_map.get(key),
                 })
         movers.sort(key=lambda m: m["pct"], reverse=True)
+
+    # Total qualifying movers before gainers/losers get capped to MOVERS_LIMIT
+    # each -- used by the "Since Your Last Visit" banner so it can say "12
+    # cards moved" even though the homepage grid only shows the top 3+3.
+    stats["total_movers"] = len(movers)
 
     gainers = [m for m in movers if m["pct"] > 0][:MOVERS_LIMIT]
     losers = sorted([m for m in movers if m["pct"] < 0], key=lambda m: m["pct"])[:MOVERS_LIMIT]
@@ -173,14 +316,39 @@ def compute_market_snapshot():
     return {"stats": stats, "gainers": gainers, "losers": losers, "quick_hits": quick_hits}
 
 
+def render_momentum_badge(m, css_class="momentum-badge"):
+    """Small emoji+label badge from the momentum engine (classify_momentum).
+    None whenever there isn't enough snapshot history yet -- see
+    MIN_HISTORY_FOR_STREAK -- so this renders nothing until the site has a
+    few weeks of real data on file."""
+    mo = m.get("momentum")
+    if not mo:
+        return ""
+    return f'<span class="{css_class}" title="{mo["detail"]}">{mo["emoji"]} {mo["label"]}</span>'
+
+
+def render_watch_button(key, name):
+    """'Keep an eye on this' watchlist toggle. Purely client-side --
+    engagement.js reads/writes localStorage; the button just needs a stable
+    data-card-key (see card_key()) to key off of. Rendered unwatched by
+    default; engagement.js repaints it on page load from localStorage."""
+    return (
+        f'<button type="button" class="watch-btn" data-card-key="{key}" '
+        f'data-card-name="{name}" aria-pressed="false" aria-label="Add {name} to your watchlist">'
+        f'<span class="watch-icon">♡</span></button>'
+    )
+
+
 def render_mover_card(m):
     direction = "up" if m["pct"] > 0 else "down"
     gslug = game_slug(m["game_label"])
     arrow = "▲" if direction == "up" else "▼"
     return (
-        f'<div class="mover-card {direction} {gslug}">'
+        f'<div class="mover-card {direction} {gslug}" data-card-key="{m["key"]}">'
+        f'{render_watch_button(m["key"], m["name"])}'
         f'<span class="tag {gslug}">{game_icon(m["game_label"])} {m["game_label"]}</span>'
         f'<strong>{m["name"]}</strong>'
+        f'{render_momentum_badge(m)}'
         f'<span class="mover-price">${m["old_price"]:.2f} → ${m["new_price"]:.2f}</span>'
         f'<span class="mover-pct {direction}">{arrow} {m["pct"]:+.1f}%</span>'
         f'</div>'
@@ -198,11 +366,13 @@ def render_quick_hit(m):
     )
     link_open = f'<a href="{m["url"]}" target="_blank" rel="noopener nofollow">' if m.get("url") else "<div>"
     link_close = "</a>" if m.get("url") else "</div>"
+    momentum_chip = render_momentum_badge(m, css_class="momentum-chip")
     return (
-        f'<div class="quick-hit {gslug}">'
+        f'<div class="quick-hit {gslug}" data-card-key="{m["key"]}">'
+        f'{render_watch_button(m["key"], m["name"])}'
         f'{link_open}{img}'
         f'<div class="quick-hit-body">'
-        f'<span class="quick-hit-pct {direction}">{arrow} {m["pct"]:+.0f}%</span>'
+        f'<span class="quick-hit-pct {direction}">{arrow} {m["pct"]:+.0f}%</span>{momentum_chip}'
         f'<strong>{m["name"]}</strong>'
         f'<span class="quick-hit-price">${m["new_price"]:.2f}</span>'
         f'</div>{link_close}'
@@ -242,15 +412,75 @@ def render_market_section(snapshot):
             "<p class='meta'>Movers need at least two snapshots to compare -- "
             "check back after the next scheduled price pull.</p>"
         )
-        return f"{stats_html}{note}"
+        return f"<div id='movers'>{stats_html}{note}</div>"
 
     cards = "".join(render_mover_card(m) for m in snapshot["gainers"] + snapshot["losers"])
     since = f" <span class='meta'>since {stats['prior_snapshot']}</span>" if stats.get("prior_snapshot") else ""
     return (
+        f"<div id='movers'>"
         f"{stats_html}"
         f"<h2 class='section-heading'>\U0001F525 Biggest Movers{since}</h2>"
         f"<div class='mover-grid'>{cards}</div>"
+        f"</div>"
     )
+
+
+def render_watchlist_section():
+    """Static shell for the 'Cards You're Watching' strip -- hidden by
+    default (and by CSS as a no-JS fallback), populated + unhidden
+    client-side by engagement.js from localStorage + card-index.json. Lives
+    on the homepage only, same as Quick Hits."""
+    return (
+        "<section id='watchlist-section' class='quick-hits-section' hidden>"
+        "<h2 class='section-heading'>\U0001F49B Cards You're Watching</h2>"
+        "<div class='quick-hits-strip' id='watchlist-strip'></div>"
+        "</section>"
+    )
+
+
+def build_engagement_data(snapshot):
+    """Writes the two small JSON files engagement.js relies on:
+      - card-index.json: every priced card in the latest snapshot, keyed by
+        card_key(), so a watched card can be resolved back into a name/
+        price/image/link even in a week where it isn't one of the "movers"
+        cards actually rendered with a heart button.
+      - snapshot-summary.json: a tiny digest (last_updated + how many cards
+        moved + the top few) that the "Since Your Last Visit" banner polls
+        to decide whether it has anything worth telling a returning visitor.
+    Both are written to the site root and fetched root-relative via
+    window.CARDPULSE_ROOT, same as every other cross-page asset here.
+    """
+    files = sorted(SNAP_DIR.glob("*.json"))
+    card_index = {}
+    summary = {"last_updated": None, "mover_count": 0, "top_movers": []}
+    if not files:
+        return card_index, summary
+
+    latest = json.loads(files[-1].read_text(encoding="utf-8"))
+    summary["last_updated"] = latest.get("fetched_at", "")[:10]
+
+    for game_key, game in latest.get("games", {}).items():
+        label = game.get("label", game_key)
+        for c in game.get("cards", []):
+            price = c.get("market_price")
+            if price is None:
+                continue
+            key = card_key(c["name"], c["set"])
+            card_index[key] = {
+                "name": c["name"],
+                "set": c["set"],
+                "game_label": label,
+                "price": price,
+                "image": c.get("image"),
+                "url": c.get("url"),
+            }
+
+    if snapshot is not None:
+        summary["mover_count"] = snapshot["stats"].get("total_movers", 0)
+        top = sorted(snapshot["quick_hits"], key=lambda m: abs(m["pct"]), reverse=True)[:3]
+        summary["top_movers"] = [{"name": m["name"], "pct": round(m["pct"], 1)} for m in top]
+
+    return card_index, summary
 
 
 def render_related_articles(current_slug, current_game, all_articles):
@@ -302,6 +532,10 @@ def build():
     shutil.copyfile(ROOT / "templates" / "style.css", SITE_DIR / "style.css")
     shutil.copyfile(ROOT / "templates" / "personalize.js", SITE_DIR / "personalize.js")
     shutil.copyfile(ROOT / "templates" / "subscribe.js", SITE_DIR / "subscribe.js")
+    # QoL layer: since-your-last-visit banner, watchlist heart buttons, and
+    # the "Cards You're Watching" strip -- all localStorage-only, no backend,
+    # no accounts. See engagement.js's own header comment for the split.
+    shutil.copyfile(ROOT / "templates" / "engagement.js", SITE_DIR / "engagement.js")
     # firebase-messaging-sw.js MUST land at the site root (not under
     # articles/) -- a service worker's scope is the directory it's served
     # from and everything below it, so root is what lets it cover the
@@ -403,6 +637,10 @@ def build():
     snapshot = compute_market_snapshot()
     market_html = render_market_section(snapshot)
     quick_hits_html = render_quick_hits(snapshot)
+    watchlist_html = render_watchlist_section()
+    card_index, engagement_summary = build_engagement_data(snapshot)
+    (SITE_DIR / "card-index.json").write_text(json.dumps(card_index), encoding="utf-8")
+    (SITE_DIR / "snapshot-summary.json").write_text(json.dumps(engagement_summary), encoding="utf-8")
     index_html = template.render(
         title="CardPulse -- Trading Card Market Data & Analysis",
         description="Plain-English trading card market breakdowns, backed by real price data.",
@@ -415,6 +653,7 @@ def build():
             "</div>"
             f"{market_html}"
             f"{quick_hits_html}"
+            f"{watchlist_html}"
             "<h2 class='section-heading'>Latest Analysis</h2>"
             f"<ul class='article-grid'>{list_items}</ul>"
         ),
